@@ -17,7 +17,7 @@ Sprout is early. Four commands work today:
 - `sprout open`
 - `sprout rm`
 
-`sprout --help` also lists `rename`, which prints `not built yet` and exits 1. `rm` does not yet remove an experiment's Docker image, volume, or network.
+`sprout --help` also lists `rename`, which prints `not built yet` and exits 1.
 
 ## Install
 
@@ -80,7 +80,7 @@ A yes adds six files for [claude-container](https://github.com/AI-Progress-Agent
 - `mise.toml`: empty. The image installs the tools listed here. Run `docker/cc build` after you change it.
 - `.gitignore`: ignores the kit's files for one machine only, such as `docker/cc.local`.
 
-`project_name` names the Docker image and the volume that holds the Claude sign-in. So each containerized experiment has its own image and needs its own sign-in.
+`project_name` names the Docker image and the volume that holds the Claude sign-in. So each containerized experiment has its own image and needs its own sign-in. `sprout rm` removes them along with the experiment.
 
 Sprout builds nothing, and it checks for neither Docker nor uv, which `docker/cc` needs. Run `docker/cc` inside the experiment to start Claude Code in its container. The [kit's README](https://github.com/AI-Progress-Agent/claude-container#readme) covers setup.
 
@@ -130,6 +130,24 @@ Remove? [y/N]
 `y` or `yes`, in any case, removes it. Anything else, an empty answer, or Ctrl-D cancels: sprout prints `sprout: cancelled` and exits 1. Without a terminal, sprout cannot ask, so `rm` exits with an error and removes nothing.
 
 Sprout moves the directory with `/usr/bin/trash`, which macOS 15 and later ship, so you can put it back from the Trash. If `trash` fails, sprout prints its error and exits 1. `rm` prints nothing on stdout.
+
+#### Docker objects
+
+When the experiment uses [containerized Claude Code](#containerized-claude-code), `rm` also removes its Docker objects. If `docker/kit.toml` sets `project_name`, the confirmation adds a line that names them:
+
+```console
+$ sprout rm sqlite
+/Users/you/src/experiments/2026-10-10-bun-sqlite-bench
+Bench SQLite in Bun
+Docker: image 2026-10-10-bun-sqlite-bench-claude:latest, volume 2026-10-10-bun-sqlite-bench-claude_claude-config, network 2026-10-10-bun-sqlite-bench-claude_default
+Remove? [y/N]
+```
+
+One yes covers the directory and the Docker objects. After the directory is in the Trash, sprout removes the image `<project_name>:latest`, the volume `<project_name>_claude-config`, which holds the Claude sign-in, and the network `<project_name>_default`. It skips any that do not exist. Unlike the directory, these do not go to the Trash.
+
+- If another experiment's `docker/kit.toml` sets the same `project_name`, sprout leaves Docker alone and says so on stderr.
+- If Docker fails, sprout prints one warning on stderr and still exits 0. That covers a missing `docker` command, a stopped Docker daemon, and an image that a container still uses. Sprout stops at the first failure, so remove what is left with `docker` yourself.
+- Sprout never touches the Claude Code history in `~/.claude/projects`.
 
 ## The root
 
