@@ -2,6 +2,7 @@ import type { Context } from "./context.ts";
 import { SproutError } from "./errors.ts";
 import {
 	type Experiment,
+	experimentLine,
 	matchesQuery,
 	readExperiments,
 } from "./experiments.ts";
@@ -46,13 +47,9 @@ export async function pickExperiment(
 /** Writes one numbered line per experiment on stderr, numbers lined up. */
 function showPickList(matches: Experiment[], ctx: Context): void {
 	const width = String(matches.length).length;
-	matches.forEach(({ dirName, description }, index) => {
-		const number = `${String(index + 1).padStart(width)})`;
-		ctx.stderr.write(
-			description === undefined
-				? `${number} ${dirName}\n`
-				: `${number} ${dirName}  ${description}\n`,
-		);
+	matches.forEach((experiment, index) => {
+		const number = String(index + 1).padStart(width);
+		ctx.stderr.write(`${number}) ${experimentLine(experiment)}\n`);
 	});
 }
 
