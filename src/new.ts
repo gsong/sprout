@@ -2,12 +2,12 @@ import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { containerFiles } from "./container.ts";
 import type { Context } from "./context.ts";
-import { Interrupted, SproutError } from "./errors.ts";
+import { SproutError } from "./errors.ts";
 import { type ExperimentFile, fileOperation } from "./files.ts";
 import { toName, tryName } from "./name.ts";
 import { askYes, openPrompts, type Prompts } from "./prompt.ts";
 import { resolveRoot } from "./root.ts";
-import { failureReason, type ProgramResult, runProgram } from "./run.ts";
+import { runChecked } from "./run.ts";
 import { suggestName } from "./suggest.ts";
 
 /** A directory `new` made, and the final name in it, with any `-2` suffix. */
@@ -189,16 +189,12 @@ async function runGit(
 ): Promise<void> {
 	const gitEnv = { ...ctx.env };
 	for (const name of repoEnvVars) delete gitEnv[name];
-	const fail = (reason: string) =>
-		new SproutError(`git ${args[0]} failed: ${reason}`);
-	let result: ProgramResult;
-	try {
-		result = await runProgram(["git", ...args], ctx, { cwd, env: gitEnv });
-	} catch (error) {
-		if (error instanceof Interrupted) throw error;
-		throw fail((error as Error).message);
-	}
-	if (result.exitCode !== 0) throw fail(failureReason("git", result));
+	await runChecked(
+		["git", ...args],
+		ctx,
+		(reason) => new SproutError(`git ${args[0]} failed: ${reason}`),
+		{ cwd, env: gitEnv },
+	);
 }
 
 /** The `YYYY-MM-DD` date of `time` in the local time zone. */

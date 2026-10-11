@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Context } from "./context.ts";
-import { Interrupted } from "./errors.ts";
+import { Interrupted, SproutError } from "./errors.ts";
 import { readExperiments } from "./experiments.ts";
-import { failureReason, type ProgramResult, runProgram } from "./run.ts";
+import { runChecked } from "./run.ts";
 
 /** The Docker objects claude-container makes for one `project_name`. */
 export interface DockerObjects {
@@ -71,6 +71,10 @@ export async function removeDockerObjects(
 		if (error instanceof Interrupted || ctx.interrupted.aborted) {
 			throw new Interrupted();
 		}
+		// Reading the other experiments fails with a SproutError.
+		if (!(error instanceof DockerError || error instanceof SproutError)) {
+			throw error;
+		}
 		ctx.stderr.write(
 			`sprout: Docker removal failed: ${(error as Error).message}\n`,
 		);
@@ -92,7 +96,12 @@ async function findSharer(
 }
 
 async function removeObjects(projectName: string, ctx: Context): Promise<void> {
-	const docker = (...args: string[]) => runDocker(args, ctx);
+	const docker = (...args: string[]) =>
+		runChecked(
+			[ctx.programs.docker, ...args],
+			ctx,
+			(reason) => new DockerError(reason),
+		);
 	const { image, volume, network } = dockerObjects(projectName);
 	const objects = [
 		{
@@ -130,23 +139,9 @@ async function removeObjects(projectName: string, ctx: Context): Promise<void> {
 	}
 }
 
-/**
- * Runs docker and gives its stdout. Throws an error that says why when docker
- * cannot start or exits with a failure.
- */
-async function runDocker(args: string[], ctx: Context): Promise<string> {
-	let result: ProgramResult;
-	try {
-		result = await runProgram([ctx.programs.docker, ...args], ctx);
-	} catch (error) {
-		if (error instanceof Interrupted) throw error;
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-			throw new Error("docker is not on PATH");
-		}
-		throw error;
-	}
-	if (result.exitCode !== 0) throw new Error(failureReason("docker", result));
-	return result.stdout;
+/** Why Docker removal failed, in a few words. */
+class DockerError extends Error {
+	override name = "DockerError";
 }
 
 function hasLine(text: string, line: string): boolean {

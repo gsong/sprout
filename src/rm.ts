@@ -5,11 +5,11 @@ import {
 	readProjectName,
 	removeDockerObjects,
 } from "./docker.ts";
-import { Interrupted, SproutError, UsageError } from "./errors.ts";
+import { SproutError, UsageError } from "./errors.ts";
 import { pickExperiment } from "./pick.ts";
 import { askYes, openPrompts } from "./prompt.ts";
 import { resolveRoot } from "./root.ts";
-import { failureReason, type ProgramResult, runProgram } from "./run.ts";
+import { runChecked } from "./run.ts";
 
 /**
  * `sprout rm [query]`: picks one experiment, asks for confirmation, and moves
@@ -53,14 +53,10 @@ export async function rm(args: string[], ctx: Context): Promise<number> {
  * sprout with trash's message. Ctrl-C stops trash.
  */
 async function moveToTrash(path: string, ctx: Context): Promise<void> {
-	const fail = (reason: string) =>
-		new SproutError(`could not move ${path} to the Trash: ${reason}`);
-	let result: ProgramResult;
-	try {
-		result = await runProgram([ctx.programs.trash, path], ctx);
-	} catch (error) {
-		if (error instanceof Interrupted) throw error;
-		throw fail((error as Error).message);
-	}
-	if (result.exitCode !== 0) throw fail(failureReason("trash", result));
+	await runChecked(
+		[ctx.programs.trash, path],
+		ctx,
+		(reason) =>
+			new SproutError(`could not move ${path} to the Trash: ${reason}`),
+	);
 }
