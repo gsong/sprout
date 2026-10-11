@@ -32,3 +32,29 @@ test.each([["claude"], ["trash"], ["docker"]] as const)(
 		]);
 	},
 );
+
+test("a fake program gives the reply set for its exact arguments, or its default", async () => {
+	await using harness = await createHarness({
+		fakes: {
+			docker: {
+				stdout: "default\n",
+				replies: [
+					{ args: ["image", "ls"], stdout: "abc123\n" },
+					{ args: ["image", "rm", "x"], stderr: "in use\n", exitCode: 1 },
+				],
+			},
+		},
+	});
+	const run = (...args: string[]) => {
+		const result = Bun.spawnSync([harness.programs.docker, ...args]);
+		return [
+			result.exitCode,
+			result.stdout.toString(),
+			result.stderr.toString(),
+		];
+	};
+
+	expect(run("image", "ls")).toEqual([0, "abc123\n", ""]);
+	expect(run("image", "rm", "x")).toEqual([1, "", "in use\n"]);
+	expect(run("image")).toEqual([0, "default\n", ""]);
+});
