@@ -10,12 +10,13 @@ That command makes a dated directory under the root, such as `~/src/experiments/
 
 ## Status
 
-Sprout is early. Two commands work today:
+Sprout is early. Three commands work today:
 
 - `sprout new`
 - `sprout list`
+- `sprout open`
 
-`sprout --help` also lists `open`, `rm`, and `rename`. Those three print `not built yet` and exit 1.
+`sprout --help` also lists `rm` and `rename`. Those two print `not built yet` and exit 1.
 
 ## Install
 
@@ -96,6 +97,23 @@ $ sprout list
 Any directory directly under the root is an experiment, whoever created it. Sprout skips hidden directories. The description is the first non-blank line after the first heading in the experiment's `README.md`. An experiment without one shows its directory name alone.
 
 Dated directories come first, newest first. Undated directories follow. The filter keeps experiments whose directory name contains it, ignoring case. `sprout list cafe` shows only the first line above.
+
+### `sprout open [query]`
+
+`open` picks one experiment and prints its absolute path on stdout, so `cd "$(sprout open bun)"` moves you into it.
+
+The query works like the `list` filter: it matches experiments whose directory name contains it, ignoring case. When one experiment matches, sprout prints its path without asking. When none match, sprout exits with an error. With no query, every experiment matches.
+
+When several match, sprout shows a numbered pick list on stderr, in `list` order, and asks for a number:
+
+```console
+$ sprout open bun
+1) 2026-10-10-bun-sqlite-bench-how-fast-2  Bun SQLite bench: how fast?
+2) 2026-10-10-bun-sqlite-bench-how-fast  Bun SQLite bench: how fast?
+Number [1-2]:
+```
+
+An answer that is not a listed number asks again. An empty answer or Ctrl-D cancels: sprout prints `sprout: cancelled` and exits 1. Without a terminal, sprout cannot ask, so several matches are an error. A root that does not exist yet has no experiments to open.
 
 ## The root
 
