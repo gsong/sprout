@@ -45,6 +45,14 @@ export function matchesQuery(experiment: Experiment, query: string): boolean {
 	return experiment.dirName.toLowerCase().includes(query.toLowerCase());
 }
 
+/**
+ * The index of the README's heading, its first line that is a Markdown heading,
+ * or -1 when it has none.
+ */
+export function headingIndex(lines: string[]): number {
+	return lines.findIndex((line) => heading.test(line));
+}
+
 /** The experiment at `entry`, or `undefined` when it is hidden or not a directory. */
 async function readExperiment(
 	root: string,
@@ -83,7 +91,7 @@ async function readDescription(path: string): Promise<string | undefined> {
 	);
 	if (readme === undefined) return undefined;
 	const lines = readme.split("\n");
-	const first = lines.findIndex((line) => heading.test(line));
+	const first = headingIndex(lines);
 	if (first === -1) return undefined;
 	return lines
 		.slice(first + 1)

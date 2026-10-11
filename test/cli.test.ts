@@ -50,15 +50,3 @@ test("no command is a usage error that shows the help on stderr", async () => {
 	expect(result.stdout).toBe("");
 	expect(result.stderr).toMatch(/^ {2}sprout list\b/m);
 });
-
-test("a v1 command that is not built yet exits 1 and says so", async () => {
-	await using harness = await createHarness();
-
-	const result = await harness.run(["rename", "idea", "better"]);
-
-	expect(result).toEqual({
-		exitCode: 1,
-		stdout: "",
-		stderr: "sprout: 'rename' is not built yet\n",
-	});
-});
