@@ -99,6 +99,11 @@ test("a non-zero exit with no output names the exit code", async () => {
 test.each([
 	["", "empty reply"],
 	["日本語\n", "reply has no a-z or 0-9: 日本語"],
+	[
+		"I won't name this one. It reads like a privacy problem.\n",
+		"reply is not a name: I won't name this one. It reads like a privacy problem.",
+	],
+	["five words is too many\n", "reply is not a name: five words is too many"],
 ])("a reply of %p fails with %p", async (stdout, reason) => {
 	await using harness = await createHarness({ fakes: { claude: { stdout } } });
 
@@ -130,7 +135,7 @@ test("a claude that is not on PATH warns and falls back to the description", asy
 	});
 });
 
-test("a claude that hangs is killed after 5 s and the description is the fallback", async () => {
+test("a claude that hangs is killed after 10 s and the description is the fallback", async () => {
 	await using harness = await createHarness({
 		fakes: { claude: { stdout: "too-late\n", hang: true } },
 	});
@@ -142,13 +147,13 @@ test("a claude that hangs is killed after 5 s and the description is the fallbac
 	expect(result).toEqual({
 		exitCode: 0,
 		stdout: `${join(harness.root, `${today}-idea`)}\n`,
-		stderr: "sprout: name suggestion failed: no reply after 5 s\n",
+		stderr: "sprout: name suggestion failed: no reply after 10 s\n",
 	});
-	expect(waited).toBeGreaterThanOrEqual(5000);
-	expect(waited).toBeLessThan(8000);
+	expect(waited).toBeGreaterThanOrEqual(10_000);
+	expect(waited).toBeLessThan(13_000);
 	const [call] = await harness.calls("claude");
 	expect(isRunning(call?.pid ?? 0)).toBe(false);
-}, 10_000);
+}, 15_000);
 
 test("a failed call with an empty fallback and no terminal exits 1", async () => {
 	await using harness = await createHarness({

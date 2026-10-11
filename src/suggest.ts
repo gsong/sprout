@@ -7,7 +7,10 @@ const systemPrompt =
 	"Suggest a name for a software experiment from its description. Reply with 2 to 4 lowercase words joined by dashes, and nothing else.";
 
 /** How long sprout waits for claude before it kills the process. */
-const timeoutMs = 5000;
+const timeoutMs = 10_000;
+
+/** The most words a reply can have, matching the system prompt. */
+const maxWords = 4;
 
 /**
  * Asks claude for a name built only from the description. A failed call never
@@ -103,13 +106,21 @@ async function askClaude(description: string, ctx: Context): Promise<string> {
 		);
 	}
 	const reply = firstLine(stdout);
-	const name = reply === undefined ? undefined : tryName(reply);
+	if (reply === undefined) throw new SuggestionError("empty reply");
+	// A refusal or a chatty reply would otherwise become a long, odd name.
+	if (wordCount(reply) > maxWords) {
+		throw new SuggestionError(`reply is not a name: ${reply}`);
+	}
+	const name = tryName(reply);
 	if (name === undefined) {
-		throw new SuggestionError(
-			reply === undefined ? "empty reply" : `reply has no a-z or 0-9: ${reply}`,
-		);
+		throw new SuggestionError(`reply has no a-z or 0-9: ${reply}`);
 	}
 	return name;
+}
+
+/** Counts runs of letters and digits, so dashes and spaces both split words. */
+function wordCount(text: string): number {
+	return text.split(/[^\p{L}\p{N}]+/u).filter((word) => word !== "").length;
 }
 
 function firstLine(text: string): string | undefined {
