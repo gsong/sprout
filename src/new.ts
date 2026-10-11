@@ -6,7 +6,7 @@ import { SproutError } from "./errors.ts";
 import { type ExperimentFile, fileOperation } from "./files.ts";
 import { untilInterrupted } from "./interrupt.ts";
 import { toName, tryName } from "./name.ts";
-import { openPrompts, type Prompts } from "./prompt.ts";
+import { askYes, openPrompts, type Prompts } from "./prompt.ts";
 import { resolveRoot } from "./root.ts";
 import { suggestName } from "./suggest.ts";
 
@@ -120,8 +120,7 @@ async function confirmName(
  */
 async function askContainer(prompts: Prompts): Promise<boolean> {
 	if (!prompts.attached) return false;
-	const answer = await prompts.ask("Containerized Claude Code? [y/N] ");
-	return ["y", "yes"].includes(answer.trim().toLowerCase());
+	return askYes(prompts, "Containerized Claude Code? [y/N] ");
 }
 
 /**
