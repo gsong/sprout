@@ -23,6 +23,11 @@ export interface HarnessOptions {
 	fakes?: Partial<Record<ProgramName, FakeProgram>>;
 }
 
+export interface RunOptions {
+	/** Env vars to set over the defaults. `undefined` unsets one. */
+	env?: Record<string, string | undefined>;
+}
+
 export interface RunResult {
 	exitCode: number;
 	stdout: string;
@@ -32,12 +37,29 @@ export interface RunResult {
 export interface Harness extends AsyncDisposable {
 	/** The temporary root, passed to sprout as SPROUT_ROOT. It exists at start. */
 	root: string;
+	/** The temporary home, passed to sprout as HOME. It exists at start. */
+	home: string;
 	/** The path of the fake for each outside program, as sprout receives it. */
 	programs: Record<ProgramName, string>;
 	/** Runs sprout's command entry point with these arguments. */
-	run(args: string[]): Promise<RunResult>;
+	run(args: string[], options?: RunOptions): Promise<RunResult>;
 	/** The argument lists sprout passed to a fake program, one per call. */
 	calls(program: ProgramName): Promise<string[][]>;
+}
+
+/**
+ * Makes an experiment directory at `root/dirName`, with any missing parents,
+ * and writes its README when given one.
+ */
+export async function addExperiment(
+	root: string,
+	dirName: string,
+	readme?: string,
+): Promise<void> {
+	await mkdir(join(root, dirName), { recursive: true });
+	if (readme !== undefined) {
+		await writeFile(join(root, dirName, "README.md"), readme);
+	}
 }
 
 /**
@@ -60,8 +82,9 @@ export async function createHarness(
 
 	return {
 		root,
+		home,
 		programs,
-		async run(args) {
+		async run(args, { env = {} } = {}) {
 			let stdout = "";
 			let stderr = "";
 			const exitCode = await main(args, {
@@ -70,6 +93,7 @@ export async function createHarness(
 					HOME: home,
 					XDG_CONFIG_HOME: join(home, ".config"),
 					PATH: process.env.PATH,
+					...env,
 				},
 				stdout: {
 					write: (text) => {
