@@ -45,3 +45,15 @@ export function openPrompts(ctx: Context): Prompts {
 		},
 	};
 }
+
+/**
+ * Asks a yes-or-no question. Only `y` or `yes`, in any case and with any
+ * surrounding space, means yes. Anything else means no.
+ */
+export async function askYes(
+	prompts: Prompts,
+	question: string,
+): Promise<boolean> {
+	const answer = await prompts.ask(question);
+	return ["y", "yes"].includes(answer.trim().toLowerCase());
+}
