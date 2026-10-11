@@ -54,11 +54,11 @@ test("no command is a usage error that shows the help on stderr", async () => {
 test("a v1 command that is not built yet exits 1 and says so", async () => {
 	await using harness = await createHarness();
 
-	const result = await harness.run(["new", "an", "idea"]);
+	const result = await harness.run(["open", "idea"]);
 
 	expect(result).toEqual({
 		exitCode: 1,
 		stdout: "",
-		stderr: "sprout: 'new' is not built yet\n",
+		stderr: "sprout: 'open' is not built yet\n",
 	});
 });
