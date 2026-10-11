@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Claude Code for this repo, in a container: run `docker/cc`, or
+# `docker/cc shell`, `build` or `upgrade`. This file is the claude-container
+# stub, the same in every repo. Copy it from the kit's stub/cc rather than
+# edit it here: the repo's own settings go in docker/kit.toml.
+#
+# The image that docker/Dockerfile's FROM line names holds the launcher, in
+# /opt/kit. On the first run for each tag, this copies that directory to
+# ~/.cache/claude-container/<tag>, then runs the launcher there. When
+# XDG_CACHE_HOME is set, the copy goes under it instead. So a FROM line on a
+# fixed tag pins the image and the launcher together. A FROM line on the
+# latest tag gets a copy for each image it pulls. Each time the stub makes a
+# new copy, it deletes the older copies whose image the Mac no longer has.
+# The kit's README says what the launcher does.
+#
+# KIT_DEV, set to the path of a claude-container checkout, runs that
+# checkout's launcher instead.
+set -euo pipefail
+
+# Prints the first 12 hex digits of a local image's ID, or fails when the Mac
+# has no such image.
+short_image_id() {
+  local id
+  id=$(docker image inspect --format '{{.Id}}' "$1" 2>/dev/null) || return 1
+  id=${id#sha256:}
+  echo "${id:0:12}"
+}
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+base=$(sed -nE 's#^FROM[[:space:]]+(ghcr\.io/ai-progress-agent/claude-container:[^[:space:]]+).*#\1#p' "$here/Dockerfile" | head -n 1)
+if [ -z "$base" ]; then
+  echo "docker/cc: docker/Dockerfile has no FROM ghcr.io/ai-progress-agent/claude-container:<tag> line" >&2
+  exit 1
+fi
+export KIT_DOCKER_DIR=$here KIT_BASE_IMAGE=$base
+
+if [ -n "${KIT_DEV:-}" ]; then
+  KIT_DEV=$(cd "$KIT_DEV" && pwd)
+  export KIT_DEV
+  exec "$KIT_DEV/kit/cc" "$@"
+fi
+
+tag=${base#*:}
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/claude-container
+kit_name=${tag%%@*}
+# FROM ...:latest moves, so its kit is cached by the image's ID, not the tag.
+# build and upgrade pull the newest image first. Other runs use the local one,
+# and pull only when the Mac has no copy yet.
+if [ "$tag" = latest ]; then
+  image_id=$(short_image_id "$base") || image_id=
+  if [ -z "$image_id" ] || [ "${1:-}" = build ] || [ "${1:-}" = upgrade ]; then
+    if docker pull -q "$base" >/dev/null; then
+      image_id=$(short_image_id "$base")
+    elif [ -z "$image_id" ]; then
+      echo "docker/cc: could not pull $base, and there is no local copy" >&2
+      exit 1
+    else
+      echo "docker/cc: could not pull $base, so this uses the local copy" >&2
+    fi
+  fi
+  kit_name=latest-$image_id
+fi
+kit=$cache/$kit_name
+if [ ! -x "$kit/cc" ]; then
+  # Copy into a new directory, then rename it, so a failed copy leaves no
+  # kit behind for the next run to trust. The trap cleans up after a failure
+  # or a ctrl-c.
+  mkdir -p "$cache"
+  tmp=$(mktemp -d "$kit.XXXXXX")
+  container=
+  trap 'rm -rf "$tmp"; [ -z "$container" ] || docker rm "$container" >/dev/null' EXIT
+  container=$(docker create "$base")
+  docker cp "$container:/opt/kit/." "$tmp"
+  # Another run may have finished first. Its kit is the same, so keep it.
+  if [ ! -x "$kit/cc" ]; then
+    rm -rf "$kit"
+    mv "$tmp" "$kit"
+  fi
+  rm -rf "$tmp"
+  docker rm "$container" >/dev/null
+  trap - EXIT
+  # A latest-<id> kit is needed only while the Mac still has that image.
+  # A running container keeps its image, so this leaves its kit alone. When
+  # docker cannot list the images, this deletes nothing.
+  if [ "$tag" = latest ] && images=$(docker image ls -aq --no-trunc 2>/dev/null); then
+    for old in "$cache"/latest-*; do
+      old_id=${old##*/latest-}
+      [[ $old_id =~ ^[0-9a-f]{12}$ ]] || continue
+      [ "$old" != "$kit" ] || continue
+      case $images in
+        *"sha256:$old_id"*) ;;
+        *) rm -rf "$old" ;;
+      esac
+    done
+  fi
+fi
+exec "$kit/cc" "$@"

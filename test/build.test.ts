@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
@@ -49,4 +49,14 @@ test("the compiled binary exits 2 on an unknown command", () => {
 
 	expect(result.exitCode).toBe(2);
 	expect(result.stderr).toContain("unknown command 'bogus'");
+});
+
+test.each([
+	"stub/cc",
+	"example/docker/Dockerfile",
+	"example/docker/Dockerfile.dockerignore",
+])("the compiled binary holds the kit's %s byte for byte", async (file) => {
+	const kitFile = await readFile(join(import.meta.dir, "../src/kit", file));
+
+	expect((await readFile(binary)).includes(kitFile)).toBe(true);
 });

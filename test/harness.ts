@@ -82,6 +82,26 @@ export interface Harness extends AsyncDisposable {
 }
 
 /**
+ * Harness options with a fake claude that suggests `name`. Without it, the
+ * suggestion fails and adds a warning to stderr.
+ */
+export function claudeSays(name: string): HarnessOptions {
+	return { fakes: { claude: { stdout: `${name}\n` } } };
+}
+
+/** A function that runs git in `cwd` with the config in `home`, giving stdout. */
+export function gitIn(cwd: string, home: string) {
+	return (...args: string[]): string => {
+		const result = Bun.spawnSync(["git", ...args], {
+			cwd,
+			env: { PATH: process.env.PATH, HOME: home },
+		});
+		if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+		return result.stdout.toString();
+	};
+}
+
+/**
  * Makes an experiment directory at `root/dirName`, with any missing parents,
  * and writes its README when given one.
  */

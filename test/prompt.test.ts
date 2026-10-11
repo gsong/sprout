@@ -8,28 +8,24 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { createHarness, today } from "./harness.ts";
+import { claudeSays, createHarness, today } from "./harness.ts";
 
-/**
- * Harness options with a fake claude that suggests `name`. Without it, the
- * suggestion fails and adds a warning to stderr.
- */
-function claudeSays(name: string) {
-	return { fakes: { claude: { stdout: `${name}\n` } } };
-}
+const containerQuestion = "Containerized Claude Code? [y/N] ";
 
 test("with no words, new asks for the description until it gets one", async () => {
 	await using harness = await createHarness(claudeSays("bun-sqlite-bench"));
 
 	const result = await harness.run(["new"], {
-		stdin: "\n   \nBun + SQLite bench!\n\n",
+		stdin: "\n   \nBun + SQLite bench!\n\n\n",
 	});
 
 	const path = join(harness.root, `${today}-bun-sqlite-bench`);
 	expect(result).toEqual({
 		exitCode: 0,
 		stdout: `${path}\n`,
-		stderr: "Description: Description: Description: Name [bun-sqlite-bench]: ",
+		stderr:
+			"Description: Description: Description: Name [bun-sqlite-bench]: " +
+			containerQuestion,
 	});
 	expect(await readFile(join(path, "README.md"), "utf8")).toBe(
 		"# bun-sqlite-bench\n\nBun + SQLite bench!\n",
@@ -41,12 +37,12 @@ test("with no words, new asks for the description until it gets one", async () =
 test("Enter at the name prompt accepts the suggestion", async () => {
 	await using harness = await createHarness(claudeSays("sqlite-speed-test"));
 
-	const result = await harness.run(["new", "idea"], { stdin: "\n" });
+	const result = await harness.run(["new", "idea"], { stdin: "\n\n" });
 
 	expect(result).toEqual({
 		exitCode: 0,
 		stdout: `${join(harness.root, `${today}-sqlite-speed-test`)}\n`,
-		stderr: "Name [sqlite-speed-test]: ",
+		stderr: `Name [sqlite-speed-test]: ${containerQuestion}`,
 	});
 });
 
@@ -54,7 +50,7 @@ test("typed text replaces the suggestion and goes through the name rules", async
 	await using harness = await createHarness(claudeSays("sqlite-speed-test"));
 
 	const result = await harness.run(["new", "idea"], {
-		stdin: "  Café Crème!  \n",
+		stdin: "  Café Crème!  \n\n",
 	});
 
 	expect(result.stdout).toBe(`${join(harness.root, `${today}-cafe-creme`)}\n`);
@@ -64,7 +60,7 @@ test("typed text with no usable characters asks again", async () => {
 	await using harness = await createHarness(claudeSays("idea"));
 
 	const result = await harness.run(["new", "idea"], {
-		stdin: "日本語\nmine\n",
+		stdin: "日本語\nmine\n\n",
 	});
 
 	expect(result).toEqual({
@@ -73,7 +69,8 @@ test("typed text with no usable characters asks again", async () => {
 		stderr:
 			"Name [idea]: " +
 			"sprout: '日本語' has no a-z or 0-9 to make a name from\n" +
-			"Name [idea]: ",
+			"Name [idea]: " +
+			containerQuestion,
 	});
 });
 
@@ -82,12 +79,12 @@ test("with no suggestion and no fallback, the prompt has no default and needs ty
 		fakes: { claude: { exitCode: 1, stdout: "offline\n" } },
 	});
 
-	const result = await harness.run(["new", "日本語"], { stdin: "\nmine\n" });
+	const result = await harness.run(["new", "日本語"], { stdin: "\nmine\n\n" });
 
 	expect(result).toEqual({
 		exitCode: 0,
 		stdout: `${join(harness.root, `${today}-mine`)}\n`,
-		stderr: "sprout: name suggestion failed: offline\nName: Name: ",
+		stderr: `sprout: name suggestion failed: offline\nName: Name: ${containerQuestion}`,
 	});
 });
 

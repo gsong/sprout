@@ -1,5 +1,11 @@
 import { SproutError } from "./errors.ts";
 
+/** A file `new` writes, with its mode when it must be executable. */
+export interface ExperimentFile {
+	text: string;
+	mode?: number;
+}
+
 /** Runs a file operation on `path`. A failure stops sprout and names the path. */
 export async function fileOperation<T>(
 	path: string,
