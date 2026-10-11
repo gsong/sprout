@@ -10,14 +10,13 @@ That command makes a dated directory under the root, such as `~/src/experiments/
 
 ## Status
 
-Sprout is early. Four commands work today:
+Sprout is early, but all five v1 commands work:
 
 - `sprout new`
 - `sprout list`
 - `sprout open`
 - `sprout rm`
-
-`sprout --help` also lists `rename`, which prints `not built yet` and exits 1.
+- `sprout rename`
 
 ## Install
 
@@ -148,6 +147,23 @@ One yes covers the directory and the Docker objects. After the directory is in t
 - If another experiment's `docker/kit.toml` sets the same `project_name`, sprout leaves Docker alone and says so on stderr.
 - If Docker fails, sprout prints one warning on stderr and still exits 0. That covers a missing `docker` command, a stopped Docker daemon, and an image that a container still uses. Sprout stops at the first failure, so remove what is left with `docker` yourself.
 - Sprout never touches the Claude Code history in `~/.claude/projects`.
+
+### `sprout rename <query> <new name...>`
+
+`rename` picks one experiment the same way `open` does, pick list included, and gives it a new name. The words after the query become the new name, joined with spaces and put through the [name rules](#sprout-new-words). When the rules leave nothing, sprout exits with an error. Sprout never asks Claude for a name here.
+
+```console
+$ sprout rename sqlite SQLite speed
+/Users/you/src/experiments/2026-10-10-sqlite-speed
+```
+
+A dated directory keeps its date and gets the new name, so `2026-10-10-bun-sqlite-bench` becomes `2026-10-10-sqlite-speed`. An undated directory becomes the bare new name. If a directory with the new name already exists, sprout exits with an error and changes nothing. It never adds a `-2`.
+
+Sprout changes the README heading only if it still reads exactly `# <old name>`. A heading you edited stays as it is.
+
+`rename` leaves the rest alone. It makes no git commit, so the README change shows up in `git status`. It keeps `docker/kit.toml` as it is, so a containerized experiment keeps its image and Claude sign-in. It does not touch the Claude Code history in `~/.claude/projects`, which stays under the old path.
+
+`rename` prints the new absolute path on stdout, so `cd "$(sprout rename bench sqlite speed)"` moves you into it.
 
 ## The root
 
