@@ -11,3 +11,7 @@ _Avoid_: Sprout, seed, project, sandbox
 **Root**:
 The one central directory that holds every experiment, side by side.
 _Avoid_: Workspace, home, base
+
+**Name**:
+An experiment's short label, the part of its directory after the date. It is lowercase words joined by dashes.
+_Avoid_: Slug, title
