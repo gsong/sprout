@@ -2,12 +2,12 @@ import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { containerFiles } from "./container.ts";
 import type { Context } from "./context.ts";
-import { SproutError } from "./errors.ts";
+import { Interrupted, SproutError } from "./errors.ts";
 import { type ExperimentFile, fileOperation } from "./files.ts";
-import { untilInterrupted } from "./interrupt.ts";
 import { toName, tryName } from "./name.ts";
 import { askYes, openPrompts, type Prompts } from "./prompt.ts";
 import { resolveRoot } from "./root.ts";
+import { failureReason, type ProgramResult, runProgram } from "./run.ts";
 import { suggestName } from "./suggest.ts";
 
 /** A directory `new` made, and the final name in it, with any `-2` suffix. */
@@ -189,37 +189,16 @@ async function runGit(
 ): Promise<void> {
 	const gitEnv = { ...ctx.env };
 	for (const name of repoEnvVars) delete gitEnv[name];
-	let git: Bun.Subprocess<"ignore", "pipe", "pipe">;
+	const fail = (reason: string) =>
+		new SproutError(`git ${args[0]} failed: ${reason}`);
+	let result: ProgramResult;
 	try {
-		git = Bun.spawn(["git", ...args], {
-			cwd,
-			env: gitEnv,
-			stdin: "ignore",
-			stdout: "pipe",
-			stderr: "pipe",
-		});
+		result = await runProgram(["git", ...args], ctx, { cwd, env: gitEnv });
 	} catch (error) {
-		throw new SproutError(`git ${args[0]} failed: ${(error as Error).message}`);
+		if (error instanceof Interrupted) throw error;
+		throw fail((error as Error).message);
 	}
-	const output = Promise.all([
-		git.exited,
-		new Response(git.stdout).text(),
-		new Response(git.stderr).text(),
-	]);
-	// Sprout stops waiting on the pipes after Ctrl-C, since a git hook could
-	// hold them open.
-	const [exitCode, stdout, stderr] = await untilInterrupted(
-		ctx.interrupted,
-		output,
-		() => {
-			git.kill();
-			return git.exited;
-		},
-	);
-	if (exitCode !== 0) {
-		const reason = (stderr.trim() || stdout.trim()).split("\n")[0];
-		throw new SproutError(`git ${args[0]} failed: ${reason}`);
-	}
+	if (result.exitCode !== 0) throw fail(failureReason("git", result));
 }
 
 /** The `YYYY-MM-DD` date of `time` in the local time zone. */
