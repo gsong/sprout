@@ -14,17 +14,20 @@ test("--version prints the version from package.json", async () => {
 	});
 });
 
-test("--help lists the five commands on stdout", async () => {
-	await using harness = await createHarness();
+test.each([["--help"], ["-h"]])(
+	"%s lists the five commands on stdout",
+	async (flag) => {
+		await using harness = await createHarness();
 
-	const result = await harness.run(["--help"]);
+		const result = await harness.run([flag]);
 
-	expect(result.exitCode).toBe(0);
-	expect(result.stderr).toBe("");
-	for (const command of ["new", "list", "open", "rm", "rename"]) {
-		expect(result.stdout).toMatch(new RegExp(`^  sprout ${command}\\b`, "m"));
-	}
-});
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+		for (const command of ["new", "list", "open", "rm", "rename"]) {
+			expect(result.stdout).toMatch(new RegExp(`^  sprout ${command}\\b`, "m"));
+		}
+	},
+);
 
 test.each([["bogus"], ["--bogus"]])(
 	"unknown command %s is a usage error on stderr",

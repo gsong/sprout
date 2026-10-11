@@ -70,7 +70,7 @@ async function dispatch(args: string[], ctx: Context): Promise<number> {
 		ctx.stdout.write(`${packageJson.version}\n`);
 		return 0;
 	}
-	if (command === "--help") {
+	if (command === "--help" || command === "-h") {
 		ctx.stdout.write(helpText());
 		return 0;
 	}
@@ -104,7 +104,7 @@ Usage:
 ${lines.join("\n")}
 
 Options:
-  --help     Show this help
-  --version  Print the version
+  -h, --help  Show this help
+  --version   Print the version
 `;
 }
