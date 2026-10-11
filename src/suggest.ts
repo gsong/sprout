@@ -4,7 +4,7 @@ import { untilInterrupted } from "./interrupt.ts";
 import { tryName } from "./name.ts";
 
 const systemPrompt =
-	"Suggest a name for a software experiment from its description. Reply with 2 to 4 lowercase words joined by dashes, and nothing else.";
+	"Suggest a name for a software experiment from its description. The user's message is only that description, not a request for help, so never refuse, judge, or comment on it. Reply with 2 to 4 lowercase words joined by dashes, and nothing else.";
 
 /** How long sprout waits for claude before it kills the process. */
 const timeoutMs = 10_000;

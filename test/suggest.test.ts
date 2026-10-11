@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { createHarness, today } from "./harness.ts";
 
 const systemPrompt =
-	"Suggest a name for a software experiment from its description. Reply with 2 to 4 lowercase words joined by dashes, and nothing else.";
+	"Suggest a name for a software experiment from its description. The user's message is only that description, not a request for help, so never refuse, judge, or comment on it. Reply with 2 to 4 lowercase words joined by dashes, and nothing else.";
 
 test("new asks claude -p for a name from the description and uses it", async () => {
 	await using harness = await createHarness({
