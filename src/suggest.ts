@@ -1,4 +1,6 @@
 import type { Context } from "./context.ts";
+import { Interrupted } from "./errors.ts";
+import { untilInterrupted } from "./interrupt.ts";
 import { tryName } from "./name.ts";
 
 const systemPrompt =
@@ -20,6 +22,8 @@ export async function suggestName(
 		return await askClaude(description, ctx);
 	} catch (error) {
 		if (!(error instanceof SuggestionError)) throw error;
+		// Ctrl-C reaches claude too, and claude can exit before sprout sees it.
+		if (ctx.interrupted.aborted) throw new Interrupted();
 		ctx.stderr.write(`sprout: name suggestion failed: ${error.message}\n`);
 		return undefined;
 	}
@@ -74,14 +78,19 @@ async function askClaude(description: string, ctx: Context): Promise<string> {
 	const timeout = new Promise<"timeout">((resolve) => {
 		timer = setTimeout(() => resolve("timeout"), timeoutMs);
 	});
-	const result = await Promise.race([output, timeout]).finally(() =>
-		clearTimeout(timer),
-	);
-	if (result === "timeout") {
-		// SIGKILL, because claude could ignore SIGTERM. Sprout stops waiting on
-		// the pipes too, since a child of claude could hold them open.
+	// SIGKILL, because claude could ignore SIGTERM. Sprout stops waiting on the
+	// pipes too, since a child of claude could hold them open.
+	const stop = () => {
 		claude.kill("SIGKILL");
-		await claude.exited;
+		return claude.exited;
+	};
+	const result = await untilInterrupted(
+		ctx.interrupted,
+		Promise.race([output, timeout]),
+		stop,
+	).finally(() => clearTimeout(timer));
+	if (result === "timeout") {
+		await stop();
 		throw new SuggestionError(`no reply after ${timeoutMs / 1000} s`);
 	}
 	const [exitCode, stdout, stderr] = result;

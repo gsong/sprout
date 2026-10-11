@@ -8,7 +8,8 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type ProgramName, programNames } from "../src/context.ts";
+import { Readable } from "node:stream";
+import { type Input, type ProgramName, programNames } from "../src/context.ts";
 import { main } from "../src/main.ts";
 
 /** What a fake outside program prints and returns when sprout runs it. */
@@ -40,6 +41,15 @@ export interface RunOptions {
 	env?: Record<string, string | undefined>;
 	/** Commands to run in place of the fakes, such as a bare `claude`. */
 	programs?: Partial<Record<ProgramName, string>>;
+	/**
+	 * Attaches a terminal that types these answers. A string ends the input
+	 * after its text. A stream stays open until the test ends it.
+	 */
+	stdin?: string | Readable;
+	/** Presses Ctrl-C once stderr holds this text, such as a prompt. */
+	interruptAt?: string;
+	/** Presses Ctrl-C when this signal aborts. */
+	signal?: AbortSignal;
 }
 
 export interface RunResult {
@@ -112,9 +122,19 @@ export async function createHarness(
 		root,
 		home,
 		programs,
-		async run(args, { env = {}, programs: overrides = {} } = {}) {
+		async run(args, options = {}) {
+			const {
+				env = {},
+				programs: overrides = {},
+				stdin,
+				interruptAt,
+				signal,
+			} = options;
 			let stdout = "";
 			let stderr = "";
+			const ctrlC = new AbortController();
+			if (signal?.aborted) ctrlC.abort();
+			signal?.addEventListener("abort", () => ctrlC.abort());
 			const exitCode = await main(args, {
 				env: {
 					SPROUT_ROOT: root,
@@ -123,6 +143,7 @@ export async function createHarness(
 					PATH: process.env.PATH,
 					...env,
 				},
+				stdin: terminal(stdin),
 				stdout: {
 					write: (text) => {
 						stdout += text;
@@ -131,10 +152,14 @@ export async function createHarness(
 				stderr: {
 					write: (text) => {
 						stderr += text;
+						if (interruptAt !== undefined && stderr.includes(interruptAt)) {
+							ctrlC.abort();
+						}
 					},
 				},
 				programs: { ...programs, ...overrides },
 				now: () => now,
+				interrupted: ctrlC.signal,
 			});
 			return { exitCode, stdout, stderr };
 		},
@@ -149,6 +174,18 @@ export async function createHarness(
 			await rm(dir, { recursive: true, force: true });
 		},
 	};
+}
+
+/**
+ * Gives sprout a terminal that types `answers`. Without answers, sprout gets
+ * empty input with no terminal attached.
+ */
+function terminal(answers?: string | Readable): Input {
+	if (answers === undefined)
+		return Object.assign(Readable.from([]), { isTTY: false });
+	const input =
+		typeof answers === "string" ? Readable.from([answers]) : answers;
+	return Object.assign(input, { isTTY: true });
 }
 
 async function writeFake(

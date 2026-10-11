@@ -6,13 +6,21 @@ export interface Output {
 	write(text: string): void;
 }
 
+/** Where prompts read answers. A terminal is attached when `isTTY` is true. */
+export interface Input extends NodeJS.ReadableStream {
+	isTTY?: boolean;
+}
+
 /** Everything sprout reads from or writes to the world outside its code. */
 export interface Context {
 	env: Record<string, string | undefined>;
+	stdin: Input;
 	stdout: Output;
 	stderr: Output;
 	/** The command or path sprout runs for each outside program. */
 	programs: Record<ProgramName, string>;
 	/** The current time. Tests fix it so the date in a directory name is known. */
 	now(): Date;
+	/** Aborts when the user presses Ctrl-C. */
+	interrupted: AbortSignal;
 }
