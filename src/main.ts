@@ -4,6 +4,7 @@ import { Interrupted, SproutError, UsageError } from "./errors.ts";
 import { list } from "./list.ts";
 import { newExperiment } from "./new.ts";
 import { open } from "./open.ts";
+import { rm } from "./rm.ts";
 
 const commands = [
 	{
@@ -80,6 +81,9 @@ async function dispatch(args: string[], ctx: Context): Promise<number> {
 	}
 	if (command === "open") {
 		return open(rest, ctx);
+	}
+	if (command === "rm") {
+		return rm(rest, ctx);
 	}
 	if (commands.some(({ name }) => name === command)) {
 		throw new SproutError(`'${command}' is not built yet`);
