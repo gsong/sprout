@@ -1,8 +1,9 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+import { containerFiles } from "./container.ts";
 import type { Context } from "./context.ts";
 import { SproutError } from "./errors.ts";
-import { fileOperation } from "./files.ts";
+import { type ExperimentFile, fileOperation } from "./files.ts";
 import { untilInterrupted } from "./interrupt.ts";
 import { toName, tryName } from "./name.ts";
 import { openPrompts, type Prompts } from "./prompt.ts";
@@ -53,6 +54,7 @@ export async function newExperiment(
 	const suggestion =
 		(await suggestName(description, ctx)) ?? tryName(description);
 	const name = await confirmName(suggestion, description, prompts, ctx);
+	const containerized = await askContainer(prompts);
 	await fileOperation(root, (path) => mkdir(path, { recursive: true }));
 	const directory = await makeFreeDirectory(
 		root,
@@ -60,7 +62,7 @@ export async function newExperiment(
 		name,
 	);
 	try {
-		await fillExperiment(directory, description, ctx);
+		await fillExperiment(directory, description, containerized, ctx);
 	} catch (error) {
 		await rm(directory.path, { recursive: true, force: true }).catch(
 			(cleanup: Error) => {
@@ -112,23 +114,42 @@ async function confirmName(
 	}
 }
 
-/** Writes the experiment's files and commits all of them in a new git repo. */
+/**
+ * Asks whether the experiment gets containerized Claude Code. Only `y` or
+ * `yes`, in any case, means yes. With no terminal attached, the answer is no.
+ */
+async function askContainer(prompts: Prompts): Promise<boolean> {
+	if (!prompts.attached) return false;
+	const answer = await prompts.ask("Containerized Claude Code? [y/N] ");
+	return ["y", "yes"].includes(answer.trim().toLowerCase());
+}
+
+/**
+ * Writes the experiment's files, with the container files when `containerized`
+ * is true, and commits all of them in a new git repo.
+ */
 async function fillExperiment(
 	directory: NewDirectory,
 	description: string,
+	containerized: boolean,
 	ctx: Context,
 ): Promise<void> {
-	const files: Record<string, string> = {
-		"README.md": `# ${directory.name}\n\n${description}\n`,
+	const files: Record<string, ExperimentFile> = {
+		"README.md": { text: `# ${directory.name}\n\n${description}\n` },
+		...(containerized ? containerFiles(basename(directory.path)) : {}),
 	};
-	for (const [file, text] of Object.entries(files)) {
-		await fileOperation(join(directory.path, file), (path) =>
-			writeFile(path, text),
-		);
+	for (const [file, { text, mode }] of Object.entries(files)) {
+		await fileOperation(join(directory.path, file), async (path) => {
+			await mkdir(dirname(path), { recursive: true });
+			await writeFile(path, text);
+			// chmod, unlike writeFile's mode, does not lose bits to the umask.
+			if (mode !== undefined) await chmod(path, mode);
+		});
 	}
 	const git = (...args: string[]) => runGit(directory.path, ctx, args);
 	await git("init");
-	await git("add", "--", ...Object.keys(files));
+	// --force commits a file even when the user's own gitignore matches it.
+	await git("add", "--force", "--", ...Object.keys(files));
 	await git("commit", "--message", "chore: start experiment");
 }
 

@@ -1,0 +1,5 @@
+# The build needs these files. Everything else stays out of the build
+# context.
+*
+!mise.toml
+!mise.local.toml

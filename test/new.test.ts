@@ -7,15 +7,14 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
-import { addExperiment, createHarness, gitUser, today } from "./harness.ts";
-
-/**
- * Harness options with a fake claude that suggests `name`. Without it, the
- * suggestion fails and adds a warning to stderr.
- */
-function claudeSays(name: string) {
-	return { fakes: { claude: { stdout: `${name}\n` } } };
-}
+import {
+	addExperiment,
+	claudeSays,
+	createHarness,
+	gitIn,
+	gitUser,
+	today,
+} from "./harness.ts";
 
 test("new creates <date>-<name> under the root and prints only its path", async () => {
 	await using harness = await createHarness(claudeSays("bun-sqlite-bench"));
@@ -174,18 +173,6 @@ test("a missing git command removes the directory and exits 1", async () => {
 	});
 	expect(await readdir(harness.root)).toEqual([]);
 });
-
-/** A function that runs git in `cwd` with the config in `home`, giving stdout. */
-function gitIn(cwd: string, home: string) {
-	return (...args: string[]): string => {
-		const result = Bun.spawnSync(["git", ...args], {
-			cwd,
-			env: { PATH: process.env.PATH, HOME: home },
-		});
-		if (result.exitCode !== 0) throw new Error(result.stderr.toString());
-		return result.stdout.toString();
-	};
-}
 
 async function readme(stdout: string): Promise<string> {
 	return readFile(join(stdout.trimEnd(), "README.md"), "utf8");
