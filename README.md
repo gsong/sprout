@@ -10,13 +10,14 @@ That command makes a dated directory under the root, such as `~/src/experiments/
 
 ## Status
 
-Sprout is early. Three commands work today:
+Sprout is early. Four commands work today:
 
 - `sprout new`
 - `sprout list`
 - `sprout open`
+- `sprout rm`
 
-`sprout --help` also lists `rm` and `rename`. Those two print `not built yet` and exit 1.
+`sprout --help` also lists `rename`, which prints `not built yet` and exits 1. `rm` does not yet remove an experiment's Docker image, volume, or network.
 
 ## Install
 
@@ -114,6 +115,21 @@ Number [1-2]:
 ```
 
 An answer that is not a listed number asks again. An empty answer or Ctrl-D cancels: sprout prints `sprout: cancelled` and exits 1. Without a terminal, sprout cannot ask, so several matches are an error. A root that does not exist yet has no experiments to open.
+
+### `sprout rm [query]`
+
+`rm` picks one experiment the same way `open` does, pick list included, and moves it to the macOS Trash. Before it removes anything, it shows the experiment's path and description on stderr and asks:
+
+```console
+$ sprout rm deno
+/Users/you/src/experiments/2026-10-09-deno-kv
+Try Deno KV
+Remove? [y/N]
+```
+
+`y` or `yes`, in any case, removes it. Anything else, an empty answer, or Ctrl-D cancels: sprout prints `sprout: cancelled` and exits 1. Without a terminal, sprout cannot ask, so `rm` exits with an error and removes nothing.
+
+Sprout moves the directory with `/usr/bin/trash`, which macOS 15 and later ship, so you can put it back from the Trash. If `trash` fails, sprout prints its error and exits 1. `rm` prints nothing on stdout.
 
 ## The root
 
