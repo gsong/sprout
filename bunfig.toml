@@ -1,0 +1,4 @@
+[install]
+# Skip package releases younger than 7 days (in seconds). Matches
+# minimum_release_age in mise.toml.
+minimumReleaseAge = 604800

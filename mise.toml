@@ -1,2 +1,7 @@
+[settings]
+# Skip tool releases younger than 7 days, so a compromised release has
+# time to be caught and pulled before it lands here.
+minimum_release_age = "7d"
+
 [tools]
 bun = "1.4.2"
