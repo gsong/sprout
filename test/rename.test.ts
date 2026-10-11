@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import {
@@ -9,6 +9,17 @@ import {
 	gitIn,
 	today,
 } from "./harness.ts";
+
+/** Adds two experiments that the query `sqlite` both matches. */
+async function addTwoSqlite(root: string): Promise<void> {
+	await addExperiment(root, "2026-10-10-bun-sqlite-bench");
+	await addExperiment(root, "2026-01-05-sqlite-old");
+}
+
+/** The README of the experiment `dirName` under `root`. */
+function readReadme(root: string, dirName: string): Promise<string> {
+	return readFile(join(root, dirName, "README.md"), "utf8");
+}
 
 test("rename keeps a dated experiment's date, rewrites its heading, and prints the new path", async () => {
 	await using harness = await createHarness();
@@ -23,7 +34,7 @@ test("rename keeps a dated experiment's date, rewrites its heading, and prints t
 
 	expect(result).toEqual({ exitCode: 0, stdout: `${path}\n`, stderr: "" });
 	expect(await readdir(harness.root)).toEqual(["2026-10-09-sqlite-speed"]);
-	expect(await readFile(join(path, "README.md"), "utf8")).toBe(
+	expect(await readReadme(harness.root, "2026-10-09-sqlite-speed")).toBe(
 		"# sqlite-speed\n\nBench SQLite in Bun\n",
 	);
 });
@@ -73,12 +84,9 @@ test.each([
 	const result = await harness.run(["rename", "bench", "sqlite-speed"]);
 
 	expect(result.exitCode).toBe(0);
-	expect(
-		await readFile(
-			join(harness.root, "2026-10-09-sqlite-speed", "README.md"),
-			"utf8",
-		),
-	).toBe(readme);
+	expect(await readReadme(harness.root, "2026-10-09-sqlite-speed")).toBe(
+		readme,
+	);
 });
 
 test("rename rewrites only the first heading", async () => {
@@ -91,12 +99,9 @@ test("rename rewrites only the first heading", async () => {
 
 	await harness.run(["rename", "bench", "sqlite-speed"]);
 
-	expect(
-		await readFile(
-			join(harness.root, "2026-10-09-sqlite-speed", "README.md"),
-			"utf8",
-		),
-	).toBe("# sqlite-speed\n\nBench SQLite in Bun\n\n# bun-sqlite-bench\n");
+	expect(await readReadme(harness.root, "2026-10-09-sqlite-speed")).toBe(
+		"# sqlite-speed\n\nBench SQLite in Bun\n\n# bun-sqlite-bench\n",
+	);
 });
 
 test("renaming onto an existing directory exits 1 and changes nothing", async () => {
@@ -121,12 +126,9 @@ test("renaming onto an existing directory exits 1 and changes nothing", async ()
 		"2026-10-09-sqlite-speed",
 	]);
 	expect(await readdir(target)).toEqual([]);
-	expect(
-		await readFile(
-			join(harness.root, "2026-10-09-bun-sqlite-bench", "README.md"),
-			"utf8",
-		),
-	).toBe("# bun-sqlite-bench\n\nBench SQLite in Bun\n");
+	expect(await readReadme(harness.root, "2026-10-09-bun-sqlite-bench")).toBe(
+		"# bun-sqlite-bench\n\nBench SQLite in Bun\n",
+	);
 });
 
 test("renaming onto an existing file exits 1", async () => {
@@ -172,9 +174,9 @@ test("rename can change only the case of an undated directory", async () => {
 		stderr: "",
 	});
 	expect(await readdir(harness.root)).toEqual(["scratch"]);
-	expect(
-		await readFile(join(harness.root, "scratch", "README.md"), "utf8"),
-	).toBe("# scratch\n\nTry things\n");
+	expect(await readReadme(harness.root, "scratch")).toBe(
+		"# scratch\n\nTry things\n",
+	);
 });
 
 test("rename makes no commit, never asks Claude, and leaves kit.toml alone", async () => {
@@ -198,8 +200,7 @@ test("rename makes no commit, never asks Claude, and leaves kit.toml alone", asy
 
 test("rename picks from several matches the way open does", async () => {
 	await using harness = await createHarness();
-	await addExperiment(harness.root, "2026-10-10-bun-sqlite-bench");
-	await addExperiment(harness.root, "2026-01-05-sqlite-old");
+	await addTwoSqlite(harness.root);
 
 	const result = await harness.run(["rename", "sqlite", "sqlite-first"], {
 		stdin: "2\n",
@@ -221,8 +222,7 @@ test("rename picks from several matches the way open does", async () => {
 
 test("rename with several matches and no terminal attached exits 1", async () => {
 	await using harness = await createHarness();
-	await addExperiment(harness.root, "2026-10-10-bun-sqlite-bench");
-	await addExperiment(harness.root, "2026-01-05-sqlite-old");
+	await addTwoSqlite(harness.root);
 
 	const result = await harness.run(["rename", "sqlite", "sqlite-first"]);
 
@@ -263,8 +263,7 @@ test("a missing root has no experiments to rename", async () => {
 
 test("end of input at the pick list cancels the rename", async () => {
 	await using harness = await createHarness();
-	await addExperiment(harness.root, "2026-10-10-bun-sqlite-bench");
-	await addExperiment(harness.root, "2026-01-05-sqlite-old");
+	await addTwoSqlite(harness.root);
 
 	const result = await harness.run(["rename", "sqlite", "sqlite-first"], {
 		stdin: "",
@@ -280,8 +279,7 @@ test("end of input at the pick list cancels the rename", async () => {
 
 test("Ctrl-C at the pick list exits 130 and renames nothing", async () => {
 	await using harness = await createHarness();
-	await addExperiment(harness.root, "2026-10-10-bun-sqlite-bench");
-	await addExperiment(harness.root, "2026-01-05-sqlite-old");
+	await addTwoSqlite(harness.root);
 	const stdin = new PassThrough();
 
 	const result = await harness.run(["rename", "sqlite", "sqlite-first"], {
@@ -299,8 +297,7 @@ test("Ctrl-C at the pick list exits 130 and renames nothing", async () => {
 
 test("a new name with no a-z or 0-9 exits 1 before picking", async () => {
 	await using harness = await createHarness();
-	await addExperiment(harness.root, "2026-10-10-bun-sqlite-bench");
-	await addExperiment(harness.root, "2026-01-05-sqlite-old");
+	await addTwoSqlite(harness.root);
 
 	const result = await harness.run(["rename", "sqlite", "日本語"], {
 		stdin: "1\n",
@@ -326,4 +323,26 @@ test("a new name over 40 characters is cut at a dash", async () => {
 	expect(result.stdout).toBe(
 		`${join(harness.root, "2026-10-10-a-very-long-experiment-name-that-goes")}\n`,
 	);
+});
+
+test("a README sprout cannot rewrite moves the experiment back and exits 1", async () => {
+	await using harness = await createHarness();
+	await addExperiment(
+		harness.root,
+		"2026-10-09-bun-sqlite-bench",
+		"# bun-sqlite-bench\n\nBench SQLite in Bun\n",
+	);
+	await chmod(
+		join(harness.root, "2026-10-09-bun-sqlite-bench", "README.md"),
+		0o444,
+	);
+
+	const result = await harness.run(["rename", "bench", "sqlite-speed"]);
+
+	expect(result.exitCode).toBe(1);
+	expect(result.stdout).toBe("");
+	expect(result.stderr).toStartWith(
+		`sprout: ${join(harness.root, "2026-10-09-sqlite-speed", "README.md")}: `,
+	);
+	expect(await readdir(harness.root)).toEqual(["2026-10-09-bun-sqlite-bench"]);
 });

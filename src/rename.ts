@@ -11,7 +11,8 @@ import { resolveRoot } from "./root.ts";
 
 /**
  * `sprout rename <query> <new name...>`: picks one experiment and gives it a
- * new name, keeping its date. It prints the new path.
+ * new name, keeping its date. It rewrites the README heading only when it
+ * still reads `# <old name>`, and makes no commit. It prints the new path.
  */
 export async function rename(args: string[], ctx: Context): Promise<number> {
 	const [query, ...words] = args;
@@ -38,9 +39,15 @@ export async function rename(args: string[], ctx: Context): Promise<number> {
 			? undefined
 			: renameHeading(readme, experiment.name, name);
 	if (renamed !== undefined) {
-		await fileOperation(join(to, "README.md"), (path) =>
-			writeFile(path, renamed),
-		);
+		try {
+			await fileOperation(join(to, "README.md"), (path) =>
+				writeFile(path, renamed),
+			);
+		} catch (error) {
+			// Leave the experiment as it was, not renamed with its old heading.
+			await fileOperation(to, (path) => move(path, from));
+			throw error;
+		}
 	}
 	ctx.stdout.write(`${to}\n`);
 	return 0;
