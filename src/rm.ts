@@ -1,10 +1,10 @@
 import { join } from "node:path";
 import type { Context } from "./context.ts";
-import { SproutError, UsageError } from "./errors.ts";
-import { untilInterrupted } from "./interrupt.ts";
+import { Interrupted, SproutError, UsageError } from "./errors.ts";
 import { pickExperiment } from "./pick.ts";
 import { askYes, openPrompts } from "./prompt.ts";
 import { resolveRoot } from "./root.ts";
+import { failureReason, type ProgramResult, runProgram } from "./run.ts";
 
 /**
  * `sprout rm [query]`: picks one experiment, asks for confirmation, and moves
@@ -39,32 +39,12 @@ export async function rm(args: string[], ctx: Context): Promise<number> {
 async function moveToTrash(path: string, ctx: Context): Promise<void> {
 	const fail = (reason: string) =>
 		new SproutError(`could not move ${path} to the Trash: ${reason}`);
-	let trash: Bun.Subprocess<"ignore", "pipe", "pipe">;
+	let result: ProgramResult;
 	try {
-		trash = Bun.spawn([ctx.programs.trash, path], {
-			env: ctx.env,
-			stdin: "ignore",
-			stdout: "pipe",
-			stderr: "pipe",
-		});
+		result = await runProgram([ctx.programs.trash, path], ctx);
 	} catch (error) {
+		if (error instanceof Interrupted) throw error;
 		throw fail((error as Error).message);
 	}
-	const output = Promise.all([
-		trash.exited,
-		new Response(trash.stdout).text(),
-		new Response(trash.stderr).text(),
-	]);
-	const [exitCode, stdout, stderr] = await untilInterrupted(
-		ctx.interrupted,
-		output,
-		() => {
-			trash.kill();
-			return trash.exited;
-		},
-	);
-	if (exitCode !== 0) {
-		const reason = (stderr.trim() || stdout.trim()).split("\n")[0];
-		throw fail(reason || `trash exited with code ${exitCode}`);
-	}
+	if (result.exitCode !== 0) throw fail(failureReason("trash", result));
 }
