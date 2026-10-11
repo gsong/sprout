@@ -1,6 +1,7 @@
 import packageJson from "../package.json" with { type: "json" };
 import type { Context } from "./context.ts";
 import { SproutError, UsageError } from "./errors.ts";
+import { list } from "./list.ts";
 
 const commands = [
 	{
@@ -50,7 +51,7 @@ export async function main(args: string[], ctx: Context): Promise<number> {
 }
 
 async function dispatch(args: string[], ctx: Context): Promise<number> {
-	const [command] = args;
+	const [command, ...rest] = args;
 	if (command === undefined) {
 		ctx.stderr.write(helpText());
 		return 2;
@@ -62,6 +63,9 @@ async function dispatch(args: string[], ctx: Context): Promise<number> {
 	if (command === "--help") {
 		ctx.stdout.write(helpText());
 		return 0;
+	}
+	if (command === "list") {
+		return list(rest, ctx);
 	}
 	if (commands.some(({ name }) => name === command)) {
 		throw new SproutError(`'${command}' is not built yet`);
