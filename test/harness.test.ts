@@ -13,7 +13,9 @@ test("a fake program prints what the test set and records its arguments", async 
 	expect(result.exitCode).toBe(3);
 	expect(result.stdout.toString()).toBe("bun-sqlite-bench\n");
 	expect(result.stderr.toString()).toBe("warn\n");
-	expect(await harness.calls("claude")).toEqual([["-p", "two words"]]);
+	const [call] = await harness.calls("claude");
+	expect(call?.args).toEqual(["-p", "two words"]);
+	expect(call?.pid).toBeGreaterThan(0);
 });
 
 test.each([["claude"], ["trash"], ["docker"]] as const)(
@@ -25,6 +27,8 @@ test.each([["claude"], ["trash"], ["docker"]] as const)(
 
 		expect(result.exitCode).toBe(127);
 		expect(harness.programs[name]).not.toBe(name);
-		expect(await harness.calls(name)).toEqual([["anything"]]);
+		expect((await harness.calls(name)).map((call) => call.args)).toEqual([
+			["anything"],
+		]);
 	},
 );

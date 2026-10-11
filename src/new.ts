@@ -5,6 +5,7 @@ import { SproutError } from "./errors.ts";
 import { fileOperation } from "./files.ts";
 import { toName } from "./name.ts";
 import { resolveRoot } from "./root.ts";
+import { suggestName } from "./suggest.ts";
 
 type Env = Context["env"];
 
@@ -43,8 +44,10 @@ export async function newExperiment(
 ): Promise<number> {
 	if (args.length === 0) throw new SproutError("new needs a description");
 	const description = args.join(" ");
-	const name = toName(description);
 	const root = await resolveRoot(ctx.env);
+	// When claude fails, the name comes from the description. An empty one
+	// stops new with the name rules' error, because new cannot prompt yet.
+	const name = (await suggestName(description, ctx)) ?? toName(description);
 	await fileOperation(root, (path) => mkdir(path, { recursive: true }));
 	const directory = await makeFreeDirectory(
 		root,

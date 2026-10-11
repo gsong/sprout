@@ -16,6 +16,18 @@ export interface FakeProgram {
 	stdout?: string;
 	stderr?: string;
 	exitCode?: number;
+	/**
+	 * Never exits on its own, after printing, and ignores SIGTERM. Only SIGKILL
+	 * stops it.
+	 */
+	hang?: boolean;
+}
+
+/** One run of a fake program. */
+export interface ProgramCall {
+	args: string[];
+	env: Record<string, string>;
+	pid: number;
 }
 
 export interface HarnessOptions {
@@ -26,6 +38,8 @@ export interface HarnessOptions {
 export interface RunOptions {
 	/** Env vars to set over the defaults. `undefined` unsets one. */
 	env?: Record<string, string | undefined>;
+	/** Commands to run in place of the fakes, such as a bare `claude`. */
+	programs?: Partial<Record<ProgramName, string>>;
 }
 
 export interface RunResult {
@@ -53,8 +67,8 @@ export interface Harness extends AsyncDisposable {
 	programs: Record<ProgramName, string>;
 	/** Runs sprout's command entry point with these arguments. */
 	run(args: string[], options?: RunOptions): Promise<RunResult>;
-	/** The argument lists sprout passed to a fake program, one per call. */
-	calls(program: ProgramName): Promise<string[][]>;
+	/** Every run of a fake program, in order. */
+	calls(program: ProgramName): Promise<ProgramCall[]>;
 }
 
 /**
@@ -98,7 +112,7 @@ export async function createHarness(
 		root,
 		home,
 		programs,
-		async run(args, { env = {} } = {}) {
+		async run(args, { env = {}, programs: overrides = {} } = {}) {
 			let stdout = "";
 			let stderr = "";
 			const exitCode = await main(args, {
@@ -119,7 +133,7 @@ export async function createHarness(
 						stderr += text;
 					},
 				},
-				programs,
+				programs: { ...programs, ...overrides },
 				now: () => now,
 			});
 			return { exitCode, stdout, stderr };
@@ -151,10 +165,12 @@ async function writeFake(
 		path,
 		`#!${process.execPath}
 import { appendFileSync } from "node:fs";
-appendFileSync(${JSON.stringify(callLog(bin, name))}, JSON.stringify(process.argv.slice(2)) + "\\n");
+const call = { args: process.argv.slice(2), env: process.env, pid: process.pid };
+appendFileSync(${JSON.stringify(callLog(bin, name))}, JSON.stringify(call) + "\\n");
 process.stdout.write(${JSON.stringify(behavior.stdout ?? "")});
 process.stderr.write(${JSON.stringify(behavior.stderr ?? "")});
 process.exitCode = ${behavior.exitCode ?? 0};
+${behavior.hang ? 'process.on("SIGTERM", () => {});\nsetInterval(() => {}, 60_000);' : ""}
 `,
 	);
 	await chmod(path, 0o755);
