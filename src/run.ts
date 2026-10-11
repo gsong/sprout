@@ -1,4 +1,6 @@
+import { basename } from "node:path";
 import type { Context } from "./context.ts";
+import { Interrupted } from "./errors.ts";
 import { untilInterrupted } from "./interrupt.ts";
 
 /** How an outside program ended, with everything it printed. */
@@ -41,6 +43,33 @@ export async function runProgram(
 		},
 	);
 	return { exitCode, stdout, stderr };
+}
+
+/**
+ * Runs `command` like `runProgram` and gives its stdout. When the program
+ * cannot start or exits with a failure, it throws `fail(reason)`. Ctrl-C
+ * throws `Interrupted`.
+ */
+export async function runChecked(
+	command: string[],
+	ctx: Context,
+	fail: (reason: string) => Error,
+	options: { cwd?: string; env?: Record<string, string | undefined> } = {},
+): Promise<string> {
+	const [program = ""] = command;
+	const name = basename(program);
+	let result: ProgramResult;
+	try {
+		result = await runProgram(command, ctx, options);
+	} catch (error) {
+		if (error instanceof Interrupted) throw error;
+		const notOnPath =
+			(error as NodeJS.ErrnoException).code === "ENOENT" &&
+			!program.includes("/");
+		throw fail(notOnPath ? `${name} is not on PATH` : (error as Error).message);
+	}
+	if (result.exitCode !== 0) throw fail(failureReason(name, result));
+	return result.stdout;
 }
 
 /**

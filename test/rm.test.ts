@@ -340,13 +340,13 @@ test("rm warns once and exits 0 when docker is not installed", async () => {
 
 	const result = await harness.run(["rm", "sqlite"], {
 		stdin: "y\n",
-		programs: { docker: join(harness.root, "..", "no-such-docker") },
+		programs: { docker: "sprout-test-no-such-docker" },
 	});
 
 	expect(result.exitCode).toBe(0);
 	expect(result.stdout).toBe("");
 	expect(result.stderr).toEndWith(
-		`${dockerLine}Remove? [y/N] sprout: Docker removal failed: docker is not on PATH\n`,
+		`${dockerLine}Remove? [y/N] sprout: Docker removal failed: sprout-test-no-such-docker is not on PATH\n`,
 	);
 	expect(await harness.calls("trash")).toHaveLength(1);
 });
