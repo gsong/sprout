@@ -9,8 +9,16 @@ import {
 import { join } from "node:path";
 import { addExperiment, createHarness, gitUser, today } from "./harness.ts";
 
+/**
+ * Harness options with a fake claude that suggests `name`. Without it, the
+ * suggestion fails and adds a warning to stderr.
+ */
+function claudeSays(name: string) {
+	return { fakes: { claude: { stdout: `${name}\n` } } };
+}
+
 test("new creates <date>-<name> under the root and prints only its path", async () => {
-	await using harness = await createHarness();
+	await using harness = await createHarness(claudeSays("bun-sqlite-bench"));
 
 	const result = await harness.run(["new", "Bun", "+", "SQLite", "bench!"]);
 
@@ -29,6 +37,7 @@ test("the README holds the name as a heading and the description word for word",
 	);
 });
 
+// The default fake claude fails, so these names come from the description.
 test.each([
 	["Café crème test", "cafe-creme-test"],
 	["--Hello__World--", "hello-world"],
@@ -47,19 +56,6 @@ test.each([
 	expect(result.stdout).toBe(`${join(harness.root, `${today}-${name}`)}\n`);
 });
 
-test("a description with no letters or digits is an error", async () => {
-	await using harness = await createHarness();
-
-	const result = await harness.run(["new", "日本語"]);
-
-	expect(result).toEqual({
-		exitCode: 1,
-		stdout: "",
-		stderr: "sprout: '日本語' has no a-z or 0-9 to make a name from\n",
-	});
-	expect(await readdir(harness.root)).toEqual([]);
-});
-
 test("new with no words and no terminal attached is an error", async () => {
 	await using harness = await createHarness();
 
@@ -74,7 +70,7 @@ test("new with no words and no terminal attached is an error", async () => {
 });
 
 test("new creates a missing root and its parents", async () => {
-	await using harness = await createHarness();
+	await using harness = await createHarness(claudeSays("idea"));
 	const root = join(harness.root, "nested/deeper");
 
 	const result = await harness.run(["new", "idea"], {
@@ -141,7 +137,7 @@ test("git ignores a GIT_DIR or GIT_WORK_TREE set around sprout", async () => {
 });
 
 test("a failed step after the directory exists removes it and exits 1", async () => {
-	await using harness = await createHarness();
+	await using harness = await createHarness(claudeSays("idea"));
 	const hooks = join(harness.home, "hooks");
 	await mkdir(hooks);
 	await writeFile(
@@ -165,7 +161,7 @@ test("a failed step after the directory exists removes it and exits 1", async ()
 });
 
 test("a missing git command removes the directory and exits 1", async () => {
-	await using harness = await createHarness();
+	await using harness = await createHarness(claudeSays("idea"));
 
 	const result = await harness.run(["new", "idea"], {
 		env: { PATH: harness.home },

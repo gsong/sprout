@@ -39,18 +39,21 @@ The build writes the binary to `dist/sprout`. Copy it to a directory on your `PA
 
 `new` creates an experiment and prints its path. The words become the experiment's description:
 
-1. Sprout makes `<root>/<YYYY-MM-DD>-<name>`, using today's local date.
-2. It writes `README.md` with the name as the heading and the description below it.
-3. It runs `git init` and commits the README as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
+1. Sprout asks Claude Code for a name, built only from the description. It runs `claude -p` with the Haiku model, no tools, and none of your settings, and waits at most 5 seconds.
+2. Sprout makes `<root>/<YYYY-MM-DD>-<name>`, using today's local date.
+3. It writes `README.md` with the name as the heading and the description below it.
+4. It runs `git init` and commits the README as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
 
-Sprout turns the description into the name by these rules, in order:
+A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, and a reply after 5 seconds. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and makes the name from the description instead.
+
+Sprout turns Claude's reply or the description into the name by these rules, in order:
 
 - Lowercase it, and strip accents, so `Café` becomes `cafe`.
 - Replace each run of anything other than `a-z` and `0-9` with one dash.
 - Trim dashes from both ends.
 - Cut a name over 40 characters at the last dash that keeps it within 40.
 
-So `sprout new "Bun SQLite bench: how fast?"` makes `2026-10-10-bun-sqlite-bench-how-fast`. Run it again the same day and sprout makes `2026-10-10-bun-sqlite-bench-how-fast-2`. A description with no `a-z` or `0-9` left after the rules is an error.
+So when Claude fails, `sprout new "Bun SQLite bench: how fast?"` makes `2026-10-10-bun-sqlite-bench-how-fast`. Run it again the same day and sprout makes `2026-10-10-bun-sqlite-bench-how-fast-2`. When Claude fails and the description has no `a-z` or `0-9` left after the rules, `new` exits with an error.
 
 `new` prints only the path on stdout, which is what makes `cd "$(sprout new ...)"` work.
 
