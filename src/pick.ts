@@ -6,17 +6,19 @@ import {
 	matchesQuery,
 	readExperiments,
 } from "./experiments.ts";
-import { openPrompts, type Prompts } from "./prompt.ts";
+import type { Prompts } from "./prompt.ts";
 
 /**
  * Picks one experiment in `root` whose directory name contains `query`,
  * ignoring case. Without a query, every experiment matches. One match is used
  * directly. Several matches show a numbered pick list on stderr and ask for a
- * number, which needs a terminal attached.
+ * number, which needs a terminal attached. The caller owns `prompts`, so a
+ * later question reads from the same stdin.
  */
 export async function pickExperiment(
 	root: string,
 	query: string | undefined,
+	prompts: Prompts,
 	ctx: Context,
 ): Promise<Experiment> {
 	const matches = (await readExperiments(root)).filter((experiment) =>
@@ -31,7 +33,6 @@ export async function pickExperiment(
 		);
 	}
 	if (matches.length === 1) return only;
-	using prompts = openPrompts(ctx);
 	if (!prompts.attached) {
 		throw new SproutError(
 			query === undefined
@@ -40,8 +41,7 @@ export async function pickExperiment(
 		);
 	}
 	showPickList(matches, ctx);
-	// Awaiting here keeps the prompts open until the answer arrives.
-	return await askNumber(matches, prompts);
+	return askNumber(matches, prompts);
 }
 
 /** Writes one numbered line per experiment on stderr, numbers lined up. */
