@@ -3,6 +3,7 @@ import type { Context } from "./context.ts";
 import { Interrupted, SproutError, UsageError } from "./errors.ts";
 import { list } from "./list.ts";
 import { newExperiment } from "./new.ts";
+import { open } from "./open.ts";
 
 const commands = [
 	{
@@ -76,6 +77,9 @@ async function dispatch(args: string[], ctx: Context): Promise<number> {
 	}
 	if (command === "list") {
 		return list(rest, ctx);
+	}
+	if (command === "open") {
+		return open(rest, ctx);
 	}
 	if (commands.some(({ name }) => name === command)) {
 		throw new SproutError(`'${command}' is not built yet`);
