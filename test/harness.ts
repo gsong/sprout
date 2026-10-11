@@ -22,6 +22,19 @@ export interface FakeProgram {
 	 * stops it.
 	 */
 	hang?: boolean;
+	/**
+	 * Replies for exact argument lists. A run whose arguments match one gets its
+	 * output and exit code in place of the defaults above.
+	 */
+	replies?: FakeReply[];
+}
+
+/** What a fake program prints and returns for one exact argument list. */
+export interface FakeReply {
+	args: string[];
+	stdout?: string;
+	stderr?: string;
+	exitCode?: number;
 }
 
 /** One run of a fake program. */
@@ -224,9 +237,11 @@ async function writeFake(
 import { appendFileSync } from "node:fs";
 const call = { args: process.argv.slice(2), env: process.env, pid: process.pid };
 appendFileSync(${JSON.stringify(callLog(bin, name))}, JSON.stringify(call) + "\\n");
-process.stdout.write(${JSON.stringify(behavior.stdout ?? "")});
-process.stderr.write(${JSON.stringify(behavior.stderr ?? "")});
-process.exitCode = ${behavior.exitCode ?? 0};
+const replies = ${JSON.stringify(behavior.replies ?? [])};
+const reply = replies.find((r) => JSON.stringify(r.args) === JSON.stringify(call.args)) ?? ${JSON.stringify({ stdout: behavior.stdout, stderr: behavior.stderr, exitCode: behavior.exitCode })};
+process.stdout.write(reply.stdout ?? "");
+process.stderr.write(reply.stderr ?? "");
+process.exitCode = reply.exitCode ?? 0;
 ${behavior.hang ? 'process.on("SIGTERM", () => {});\nsetInterval(() => {}, 60_000);' : ""}
 `,
 	);
