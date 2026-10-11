@@ -35,27 +35,52 @@ The build writes the binary to `dist/sprout`. Copy it to a directory on your `PA
 
 ## Usage
 
-### `sprout new <words...>`
+### `sprout new [words...]`
 
-`new` creates an experiment and prints its path. The words become the experiment's description:
+`new` creates an experiment and prints its path. The words become the experiment's description. With no words, sprout asks `Description:`, and asks again until the answer is not blank.
 
 1. Sprout asks Claude Code for a name, built only from the description. It runs `claude -p` with the Haiku model, no tools, and none of your settings, and waits at most 5 seconds.
-2. Sprout makes `<root>/<YYYY-MM-DD>-<name>`, using today's local date.
-3. It writes `README.md` with the name as the heading and the description below it.
-4. It runs `git init` and commits the README as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
+2. Sprout shows the suggestion, as in `Name [bun-sqlite-bench]:`. Enter accepts it. Typed text replaces it and goes through the name rules below. When the rules leave nothing of the typed text, sprout says so and asks again.
+3. Sprout asks `Containerized Claude Code? [y/N]`. `y` or `yes`, in any case, means yes. Anything else means no. [Containerized Claude Code](#containerized-claude-code) lists what yes adds.
+4. Sprout makes `<root>/<YYYY-MM-DD>-<name>`, using today's local date.
+5. It writes `README.md` with the name as the heading and the description below it.
+6. It runs `git init` and commits every file it wrote as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
 
-A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, and a reply after 5 seconds. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and makes the name from the description instead.
+A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, and a reply after 5 seconds. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and suggests a name made from the description instead.
 
-Sprout turns Claude's reply or the description into the name by these rules, in order:
+Sprout turns Claude's reply, the description, or a typed name into the name by these rules, in order:
 
 - Lowercase it, and strip accents, so `Café` becomes `cafe`.
 - Replace each run of anything other than `a-z` and `0-9` with one dash.
 - Trim dashes from both ends.
 - Cut a name over 40 characters at the last dash that keeps it within 40.
 
-So when Claude fails, `sprout new "Bun SQLite bench: how fast?"` makes `2026-10-10-bun-sqlite-bench-how-fast`. Run it again the same day and sprout makes `2026-10-10-bun-sqlite-bench-how-fast-2`. When Claude fails and the description has no `a-z` or `0-9` left after the rules, `new` exits with an error.
+So when Claude fails, `sprout new "Bun SQLite bench: how fast?"` suggests `bun-sqlite-bench-how-fast`. Accept it, and sprout makes `2026-10-10-bun-sqlite-bench-how-fast`. Run it again the same day and sprout makes `2026-10-10-bun-sqlite-bench-how-fast-2`. When Claude fails and the description has no `a-z` or `0-9` left after the rules, the prompt shows `Name:` with no suggestion, and you must type one.
 
-`new` prints only the path on stdout, which is what makes `cd "$(sprout new ...)"` work.
+`new` prints only the path on stdout, which is what makes `cd "$(sprout new ...)"` work. The prompts go to stderr, so they still show inside the `$(...)`.
+
+#### Prompts without a terminal
+
+Sprout asks only when stdin is a terminal. Otherwise it decides without asking:
+
+- With no words, `new` exits with an error.
+- The suggestion becomes the name. With no suggestion, `new` exits with an error.
+- The answer to the container question is no.
+
+Ctrl-D at any prompt cancels `new`: sprout prints `sprout: cancelled` and exits 1. Ctrl-C exits 130. Either way, sprout leaves no half-made experiment behind.
+
+#### Containerized Claude Code
+
+A yes adds six files for [claude-container](https://github.com/AI-Progress-Agent/claude-container), which runs Claude Code in Docker. They go into the starting commit with the README.
+
+- `docker/cc`, `docker/Dockerfile`, and `docker/Dockerfile.dockerignore`: copies of the claude-container kit at v2.3.0, built into sprout.
+- `docker/kit.toml`: sets `project_name` to the directory name plus `-claude`, such as `2026-10-10-bun-sqlite-bench-claude`.
+- `mise.toml`: empty. The image installs the tools listed here. Run `docker/cc build` after you change it.
+- `.gitignore`: ignores the kit's files for one machine only, such as `docker/cc.local`.
+
+`project_name` names the Docker image and the volume that holds the Claude sign-in. So each containerized experiment has its own image and needs its own sign-in.
+
+Sprout builds nothing, and it checks for neither Docker nor uv, which `docker/cc` needs. Run `docker/cc` inside the experiment to start Claude Code in its container. The [kit's README](https://github.com/AI-Progress-Agent/claude-container#readme) covers setup.
 
 ### `sprout list [filter]`
 
@@ -91,6 +116,7 @@ The path must be absolute. Sprout expands a leading `~` to your home directory. 
 - `0`: the command worked.
 - `1`: the command failed. Sprout prints the reason in one line on stderr.
 - `2`: the command or its arguments are wrong. Sprout points at `--help`.
+- `130`: you pressed Ctrl-C. Sprout removes anything `new` had half made.
 
 ## Development
 
