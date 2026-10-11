@@ -1,6 +1,6 @@
 import packageJson from "../package.json" with { type: "json" };
 import type { Context } from "./context.ts";
-import { SproutError, UsageError } from "./errors.ts";
+import { Interrupted, SproutError, UsageError } from "./errors.ts";
 import { list } from "./list.ts";
 import { newExperiment } from "./new.ts";
 
@@ -37,6 +37,12 @@ export async function main(args: string[], ctx: Context): Promise<number> {
 	try {
 		return await dispatch(args, ctx);
 	} catch (error) {
+		// A program that Ctrl-C stopped can fail before sprout sees the signal.
+		if (error instanceof Interrupted || ctx.interrupted.aborted) {
+			// The terminal echoes ^C. A newline puts the shell prompt after it.
+			ctx.stderr.write("\n");
+			return 130;
+		}
 		if (error instanceof UsageError) {
 			ctx.stderr.write(
 				`sprout: ${error.message}\nRun 'sprout --help' for usage.\n`,

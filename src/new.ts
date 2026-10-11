@@ -3,11 +3,11 @@ import { join } from "node:path";
 import type { Context } from "./context.ts";
 import { SproutError } from "./errors.ts";
 import { fileOperation } from "./files.ts";
-import { toName } from "./name.ts";
+import { untilInterrupted } from "./interrupt.ts";
+import { toName, tryName } from "./name.ts";
+import { openPrompts, type Prompts } from "./prompt.ts";
 import { resolveRoot } from "./root.ts";
 import { suggestName } from "./suggest.ts";
-
-type Env = Context["env"];
 
 /** A directory `new` made, and the final name in it, with any `-2` suffix. */
 interface NewDirectory {
@@ -42,12 +42,17 @@ export async function newExperiment(
 	args: string[],
 	ctx: Context,
 ): Promise<number> {
-	if (args.length === 0) throw new SproutError("new needs a description");
-	const description = args.join(" ");
+	using prompts = openPrompts(ctx);
+	if (args.length === 0 && !prompts.attached) {
+		throw new SproutError("new needs a description");
+	}
 	const root = await resolveRoot(ctx.env);
-	// When claude fails, the name comes from the description. An empty one
-	// stops new with the name rules' error, because new cannot prompt yet.
-	const name = (await suggestName(description, ctx)) ?? toName(description);
+	const description =
+		args.length > 0 ? args.join(" ") : await askDescription(prompts);
+	// When claude fails, the suggestion comes from the description.
+	const suggestion =
+		(await suggestName(description, ctx)) ?? tryName(description);
+	const name = await confirmName(suggestion, description, prompts, ctx);
 	await fileOperation(root, (path) => mkdir(path, { recursive: true }));
 	const directory = await makeFreeDirectory(
 		root,
@@ -55,7 +60,7 @@ export async function newExperiment(
 		name,
 	);
 	try {
-		await fillExperiment(directory, description, ctx.env);
+		await fillExperiment(directory, description, ctx);
 	} catch (error) {
 		await rm(directory.path, { recursive: true, force: true }).catch(
 			(cleanup: Error) => {
@@ -70,11 +75,48 @@ export async function newExperiment(
 	return 0;
 }
 
+/** Asks for the description until the answer is not blank, and keeps it as typed. */
+async function askDescription(prompts: Prompts): Promise<string> {
+	for (;;) {
+		const answer = await prompts.ask("Description: ");
+		if (answer.trim() !== "") return answer;
+	}
+}
+
+/**
+ * Shows the suggestion. Enter accepts it, and typed text replaces it through
+ * the name rules. Without a suggestion, the user must type a name. With no
+ * terminal attached, the suggestion is the name, and a missing one stops new.
+ */
+async function confirmName(
+	suggestion: string | undefined,
+	description: string,
+	prompts: Prompts,
+	ctx: Context,
+): Promise<string> {
+	if (!prompts.attached) return suggestion ?? toName(description);
+	const question =
+		suggestion === undefined ? "Name: " : `Name [${suggestion}]: `;
+	for (;;) {
+		const answer = (await prompts.ask(question)).trim();
+		if (answer === "") {
+			if (suggestion !== undefined) return suggestion;
+			continue;
+		}
+		try {
+			return toName(answer);
+		} catch (error) {
+			if (!(error instanceof SproutError)) throw error;
+			ctx.stderr.write(`sprout: ${error.message}\n`);
+		}
+	}
+}
+
 /** Writes the experiment's files and commits all of them in a new git repo. */
 async function fillExperiment(
 	directory: NewDirectory,
 	description: string,
-	env: Env,
+	ctx: Context,
 ): Promise<void> {
 	const files: Record<string, string> = {
 		"README.md": `# ${directory.name}\n\n${description}\n`,
@@ -84,7 +126,7 @@ async function fillExperiment(
 			writeFile(path, text),
 		);
 	}
-	const git = (...args: string[]) => runGit(directory.path, env, args);
+	const git = (...args: string[]) => runGit(directory.path, ctx, args);
 	await git("init");
 	await git("add", "--", ...Object.keys(files));
 	await git("commit", "--message", "chore: start experiment");
@@ -118,9 +160,14 @@ async function makeFreeDirectory(
 /**
  * Runs git in `cwd` with sprout's env, so git reads the user's own config. Its
  * output stays off sprout's stdout. A failure stops sprout with git's message.
+ * Ctrl-C stops git.
  */
-async function runGit(cwd: string, env: Env, args: string[]): Promise<void> {
-	const gitEnv = { ...env };
+async function runGit(
+	cwd: string,
+	ctx: Context,
+	args: string[],
+): Promise<void> {
+	const gitEnv = { ...ctx.env };
 	for (const name of repoEnvVars) delete gitEnv[name];
 	let git: Bun.Subprocess<"ignore", "pipe", "pipe">;
 	try {
@@ -134,11 +181,21 @@ async function runGit(cwd: string, env: Env, args: string[]): Promise<void> {
 	} catch (error) {
 		throw new SproutError(`git ${args[0]} failed: ${(error as Error).message}`);
 	}
-	const [exitCode, stdout, stderr] = await Promise.all([
+	const output = Promise.all([
 		git.exited,
 		new Response(git.stdout).text(),
 		new Response(git.stderr).text(),
 	]);
+	// Sprout stops waiting on the pipes after Ctrl-C, since a git hook could
+	// hold them open.
+	const [exitCode, stdout, stderr] = await untilInterrupted(
+		ctx.interrupted,
+		output,
+		() => {
+			git.kill();
+			return git.exited;
+		},
+	);
 	if (exitCode !== 0) {
 		const reason = (stderr.trim() || stdout.trim()).split("\n")[0];
 		throw new SproutError(`git ${args[0]} failed: ${reason}`);

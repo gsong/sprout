@@ -7,3 +7,8 @@ export class SproutError extends Error {
 export class UsageError extends Error {
 	override name = "UsageError";
 }
+
+/** The user pressed Ctrl-C. Sprout exits 130. */
+export class Interrupted extends Error {
+	override name = "Interrupted";
+}
