@@ -2,6 +2,7 @@ import packageJson from "../package.json" with { type: "json" };
 import type { Context } from "./context.ts";
 import { SproutError, UsageError } from "./errors.ts";
 import { list } from "./list.ts";
+import { newExperiment } from "./new.ts";
 
 const commands = [
 	{
@@ -63,6 +64,9 @@ async function dispatch(args: string[], ctx: Context): Promise<number> {
 	if (command === "--help") {
 		ctx.stdout.write(helpText());
 		return 0;
+	}
+	if (command === "new") {
+		return newExperiment(rest, ctx);
 	}
 	if (command === "list") {
 		return list(rest, ctx);

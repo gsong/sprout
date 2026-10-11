@@ -34,10 +34,20 @@ export interface RunResult {
 	stderr: string;
 }
 
+/** The time every run sees: noon on 2026-10-10, local time. */
+export const today = "2026-10-10";
+const now = new Date(2026, 9, 10, 12);
+
+/** The git identity in the temporary home's `.gitconfig`. */
+export const gitUser = { name: "Sprout Test", email: "sprout@example.com" };
+
 export interface Harness extends AsyncDisposable {
 	/** The temporary root, passed to sprout as SPROUT_ROOT. It exists at start. */
 	root: string;
-	/** The temporary home, passed to sprout as HOME. It exists at start. */
+	/**
+	 * The temporary home, passed to sprout as HOME. It exists at start and holds
+	 * a `.gitconfig` with `gitUser`.
+	 */
 	home: string;
 	/** The path of the fake for each outside program, as sprout receives it. */
 	programs: Record<ProgramName, string>;
@@ -74,6 +84,10 @@ export async function createHarness(
 	const home = join(dir, "home");
 	const bin = join(dir, "bin");
 	await Promise.all([mkdir(root), mkdir(home), mkdir(bin)]);
+	await writeFile(
+		join(home, ".gitconfig"),
+		`[user]\n\tname = ${gitUser.name}\n\temail = ${gitUser.email}\n`,
+	);
 
 	const programs = {} as Record<ProgramName, string>;
 	for (const name of programNames) {
@@ -106,6 +120,7 @@ export async function createHarness(
 					},
 				},
 				programs,
+				now: () => now,
 			});
 			return { exitCode, stdout, stderr };
 		},

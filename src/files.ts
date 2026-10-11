@@ -1,5 +1,17 @@
 import { SproutError } from "./errors.ts";
 
+/** Runs a file operation on `path`. A failure stops sprout and names the path. */
+export async function fileOperation<T>(
+	path: string,
+	operation: (path: string) => Promise<T>,
+): Promise<T> {
+	try {
+		return await operation(path);
+	} catch (error) {
+		throw pathError(path, error);
+	}
+}
+
 /**
  * Runs a file operation on `path`. A missing path gives `undefined`. Any other
  * failure stops sprout with an error that names the path.
@@ -11,9 +23,12 @@ export async function unlessMissing<T>(
 	try {
 		return await operation(path);
 	} catch (error) {
-		const { code, message } = error as NodeJS.ErrnoException;
-		if (code === "ENOENT") return undefined;
-		// Drop the trailing ", <syscall> '<path>'" so the path shows once.
-		throw new SproutError(`${path}: ${message.split(", ")[0]}`);
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+		throw pathError(path, error);
 	}
+}
+
+function pathError(path: string, error: unknown): SproutError {
+	// Drop the trailing ", <syscall> '<path>'" so the path shows once.
+	return new SproutError(`${path}: ${(error as Error).message.split(", ")[0]}`);
 }

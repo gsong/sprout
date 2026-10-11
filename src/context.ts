@@ -13,4 +13,6 @@ export interface Context {
 	stderr: Output;
 	/** The command or path sprout runs for each outside program. */
 	programs: Record<ProgramName, string>;
+	/** The current time. Tests fix it so the date in a directory name is known. */
+	now(): Date;
 }
