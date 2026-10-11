@@ -32,6 +32,14 @@ export async function readExperiments(root: string): Promise<Experiment[]> {
 		.sort(listOrder);
 }
 
+/**
+ * The directory name, two spaces, and the description, or the directory name
+ * alone when there is no description.
+ */
+export function experimentLine({ dirName, description }: Experiment): string {
+	return description === undefined ? dirName : `${dirName}  ${description}`;
+}
+
 /** Whether the directory name contains the query, ignoring case. */
 export function matchesQuery(experiment: Experiment, query: string): boolean {
 	return experiment.dirName.toLowerCase().includes(query.toLowerCase());
