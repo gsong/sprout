@@ -40,14 +40,14 @@ The build writes the binary to `dist/sprout`. Copy it to a directory on your `PA
 
 `new` creates an experiment and prints its path. The words become the experiment's description. With no words, sprout asks `Description:`, and asks again until the answer is not blank.
 
-1. Sprout asks Claude Code for a name, built only from the description. It runs `claude -p` with the Haiku model, no tools, and none of your settings, and waits at most 5 seconds.
+1. Sprout asks Claude Code for a name, built only from the description. It runs `claude -p` with the Haiku model, no tools, and none of your settings, and waits at most 10 seconds.
 2. Sprout shows the suggestion, as in `Name [bun-sqlite-bench]:`. Enter accepts it. Typed text replaces it and goes through the name rules below. When the rules leave nothing of the typed text, sprout says so and asks again.
 3. Sprout asks `Containerized Claude Code? [y/N]`. `y` or `yes`, in any case, means yes. Anything else means no. [Containerized Claude Code](#containerized-claude-code) lists what yes adds.
 4. Sprout makes `<root>/<YYYY-MM-DD>-<name>`, using today's local date.
 5. It writes `README.md` with the name as the heading and the description below it.
 6. It runs `git init` and commits every file it wrote as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
 
-A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, and a reply after 5 seconds. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and suggests a name made from the description instead.
+A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, a reply after 10 seconds, and a reply of more than 4 words, such as a refusal. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and suggests a name made from the description instead.
 
 Sprout turns Claude's reply, the description, or a typed name into the name by these rules, in order:
 
