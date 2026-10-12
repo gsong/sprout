@@ -98,6 +98,8 @@ Any directory directly under the root is an experiment, whoever created it. Spro
 
 Dated directories come first, newest first. Undated directories follow. The filter keeps experiments whose directory name contains it, ignoring case. `sprout list cafe` shows only the first line above.
 
+On a terminal, `list` prints each directory name in bold and puts a blank line between experiments. Set `NO_COLOR` to drop the bold. Piped output keeps the plain format above, one line per experiment.
+
 ### `sprout open [query]`
 
 `open` picks one experiment and prints its absolute path on stdout, so `cd "$(sprout open bun)"` moves you into it.

@@ -26,6 +26,37 @@ test("list prints each experiment and its description, newest first", async () =
 	});
 });
 
+test("on a terminal, list bolds each name and puts a blank line between experiments", async () => {
+	await using harness = await createHarness();
+	await addExperiment(
+		harness.root,
+		"2026-01-05-older-idea",
+		"# older-idea\n\nAn older idea\n",
+	);
+	await addExperiment(harness.root, "2026-10-10-no-readme");
+
+	const result = await harness.run(["list"], { stdoutTerminal: true });
+
+	expect(result.stdout).toBe(
+		"\x1b[1m2026-10-10-no-readme\x1b[22m\n\n\x1b[1m2026-01-05-older-idea\x1b[22m  An older idea\n",
+	);
+});
+
+test("on a terminal with NO_COLOR set, list keeps the blank lines but drops the bold", async () => {
+	await using harness = await createHarness();
+	await addExperiment(harness.root, "2026-01-05-older-idea");
+	await addExperiment(harness.root, "2026-10-10-newer-idea");
+
+	const result = await harness.run(["list"], {
+		stdoutTerminal: true,
+		env: { NO_COLOR: "1" },
+	});
+
+	expect(result.stdout).toBe(
+		"2026-10-10-newer-idea\n\n2026-01-05-older-idea\n",
+	);
+});
+
 test("an experiment with no README shows the directory name alone", async () => {
 	await using harness = await createHarness();
 	await addExperiment(harness.root, "2026-10-10-no-readme");

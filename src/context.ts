@@ -2,8 +2,10 @@
 export const programNames = ["claude", "trash", "docker"] as const;
 export type ProgramName = (typeof programNames)[number];
 
+/** Where sprout writes text. A terminal is attached when `isTTY` is true. */
 export interface Output {
 	write(text: string): void;
+	isTTY?: boolean;
 }
 
 /** Where prompts read answers. A terminal is attached when `isTTY` is true. */

@@ -59,6 +59,8 @@ export interface RunOptions {
 	 * after its text. A stream stays open until the test ends it.
 	 */
 	stdin?: string | Readable;
+	/** Writes stdout to a terminal, so sprout may format it for people. */
+	stdoutTerminal?: boolean;
 	/** Presses Ctrl-C once stderr holds this text, such as a prompt. */
 	interruptAt?: string;
 	/** Presses Ctrl-C when this signal aborts. */
@@ -160,6 +162,7 @@ export async function createHarness(
 				env = {},
 				programs: overrides = {},
 				stdin,
+				stdoutTerminal = false,
 				interruptAt,
 				signal,
 			} = options;
@@ -181,6 +184,7 @@ export async function createHarness(
 					write: (text) => {
 						stdout += text;
 					},
+					isTTY: stdoutTerminal,
 				},
 				stderr: {
 					write: (text) => {
