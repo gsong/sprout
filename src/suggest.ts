@@ -9,7 +9,7 @@ const systemPrompt =
 /** How long sprout waits for claude before it kills the process. */
 const timeoutMs = 10_000;
 
-/** The most words a reply can have, matching the system prompt. */
+/** The most space-separated words a reply can have. */
 const maxWords = 4;
 
 /**
@@ -118,9 +118,13 @@ async function askClaude(description: string, ctx: Context): Promise<string> {
 	return name;
 }
 
-/** Counts runs of letters and digits, so dashes and spaces both split words. */
+/**
+ * Counts words split by whitespace only. A refusal or a chatty reply has
+ * spaces, but one dash-joined name is one word, and the 40-character name
+ * limit bounds it.
+ */
 function wordCount(text: string): number {
-	return text.split(/[^\p{L}\p{N}]+/u).filter((word) => word !== "").length;
+	return text.split(/\s+/).filter((word) => word !== "").length;
 }
 
 function firstLine(text: string): string | undefined {

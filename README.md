@@ -47,7 +47,7 @@ The build writes the binary to `dist/sprout`. Copy it to a directory on your `PA
 5. It writes `README.md` with the name as the heading and the description below it.
 6. It runs `git init` and commits every file it wrote as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
 
-A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, a reply after 10 seconds, and a reply of more than 4 words, such as a refusal. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and suggests a name made from the description instead.
+A failed Claude call never fails `new`. That covers a missing `claude` command, a signed-out or offline `claude`, a reply after 10 seconds, and a reply of more than 4 space-separated words, such as a refusal. A dash-joined reply counts as one word however long it is, and the 40-character limit below shortens it. Sprout prints one line on stderr, such as `sprout: name suggestion failed: claude is not on PATH`, and suggests a name made from the description instead.
 
 Sprout turns Claude's reply, the description, or a typed name into the name by these rules, in order:
 
