@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Sprout targets macOS on Apple silicon, which macos-latest runs.
+    runs-on: macos-latest
+    steps:
+      # Actions are pinned by commit to releases at least 7 days old,
+      # matching minimum_release_age in mise.toml.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+      - run: bun scripts/check-release-tag.ts "$GITHUB_REF_NAME"
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: >-
+          bun build --compile --target=bun-darwin-arm64 src/cli.ts
+          --outfile dist/sprout-darwin-arm64
+      # The binary must report the version the tag names.
+      - run: test "v$(dist/sprout-darwin-arm64 --version)" = "$GITHUB_REF_NAME"
+      # Attach to the tag's release, creating it when the tag was pushed
+      # without one.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/sprout-darwin-arm64 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/sprout-darwin-arm64 \
+              --verify-tag --generate-notes
+          fi
