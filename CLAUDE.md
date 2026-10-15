@@ -11,3 +11,7 @@ Uses the five default triage labels (`needs-triage`, `needs-info`, `ready-for-ag
 ### Domain docs
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Coding standards
+
+Rules for writing sprout's code live in `CODING_STANDARDS.md` at the repo root. Reviews check changes against it.
