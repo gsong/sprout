@@ -96,6 +96,17 @@ test("a non-zero exit with no output names the exit code", async () => {
 	);
 });
 
+test("a reply of one dash-joined name is used however many words it joins", async () => {
+	await using harness = await createHarness({
+		fakes: { claude: { stdout: "arq-backups-b2-to-glacier\n" } },
+	});
+
+	const result = await harness.run(["new", "idea"]);
+
+	const path = join(harness.root, `${today}-arq-backups-b2-to-glacier`);
+	expect(result).toEqual({ exitCode: 0, stdout: `${path}\n`, stderr: "" });
+});
+
 test.each([
 	["", "empty reply"],
 	["日本語\n", "reply has no a-z or 0-9: 日本語"],
