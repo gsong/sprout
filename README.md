@@ -20,9 +20,13 @@ Sprout is early, but all five v1 commands work:
 
 ## Install
 
-No release exists yet. The plan is a standalone binary on GitHub releases that mise installs as `github:gsong/sprout`. The first release will cover macOS on Apple silicon only. [ADR 0001](docs/adr/0001-bun-compiled-binary.md) explains why.
+Each release on GitHub carries a standalone binary for macOS on Apple silicon only. [ADR 0001](docs/adr/0001-bun-compiled-binary.md) explains why. Install it with [mise](https://mise.jdx.dev):
 
-Until then, build it from source. You need [mise](https://mise.jdx.dev), which installs the pinned Bun version.
+```sh
+mise use -g github:gsong/sprout
+```
+
+To build it from source instead, you need mise, which installs the pinned Bun version.
 
 ```sh
 git clone https://github.com/gsong/sprout.git
