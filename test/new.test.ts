@@ -13,15 +13,14 @@ import {
 	createHarness,
 	gitIn,
 	gitUser,
-	today,
 } from "./harness.ts";
 
-test("new creates <date>-<name> under the root and prints only its path", async () => {
+test("new creates <name> under the root and prints only its path", async () => {
 	await using harness = await createHarness(claudeSays("bun-sqlite-bench"));
 
 	const result = await harness.run(["new", "Bun", "+", "SQLite", "bench!"]);
 
-	const path = join(harness.root, `${today}-bun-sqlite-bench`);
+	const path = join(harness.root, `bun-sqlite-bench`);
 	expect(result).toEqual({ exitCode: 0, stdout: `${path}\n`, stderr: "" });
 	expect(await Bun.file(join(path, "README.md")).exists()).toBe(true);
 });
@@ -52,7 +51,7 @@ test.each([
 
 	const result = await harness.run(["new", description]);
 
-	expect(result.stdout).toBe(`${join(harness.root, `${today}-${name}`)}\n`);
+	expect(result.stdout).toBe(`${join(harness.root, `${name}`)}\n`);
 });
 
 test("new with no words and no terminal attached is an error", async () => {
@@ -78,34 +77,31 @@ test("new creates a missing root and its parents", async () => {
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(root, `${today}-idea`)}\n`,
+		stdout: `${join(root, `idea`)}\n`,
 		stderr: "",
 	});
 });
 
 test("a clash appends the first free -2, -3, and so on, to the heading too", async () => {
 	await using harness = await createHarness();
-	await addExperiment(harness.root, `${today}-idea`);
-	await writeFile(
-		join(harness.root, `${today}-idea-2`),
-		"a file clashes too\n",
-	);
-	await addExperiment(harness.root, `${today}-idea-4`);
+	await addExperiment(harness.root, `idea`);
+	await writeFile(join(harness.root, `idea-2`), "a file clashes too\n");
+	await addExperiment(harness.root, `idea-4`);
 
 	const result = await harness.run(["new", "Idea"]);
 
-	expect(result.stdout).toBe(`${join(harness.root, `${today}-idea-3`)}\n`);
+	expect(result.stdout).toBe(`${join(harness.root, `idea-3`)}\n`);
 	expect(await readme(result.stdout)).toBe("# idea-3\n\nIdea\n");
 });
 
 test("the 40-character cap does not count the clash suffix", async () => {
 	await using harness = await createHarness();
 	const name = "a".repeat(40);
-	await addExperiment(harness.root, `${today}-${name}`);
+	await addExperiment(harness.root, `${name}`);
 
 	const result = await harness.run(["new", "a".repeat(45)]);
 
-	expect(result.stdout).toBe(`${join(harness.root, `${today}-${name}-2`)}\n`);
+	expect(result.stdout).toBe(`${join(harness.root, `${name}-2`)}\n`);
 });
 
 test("new commits every file it wrote as the user in git config", async () => {

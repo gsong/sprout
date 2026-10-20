@@ -2,13 +2,7 @@ import { expect, test } from "bun:test";
 import { chmod, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import {
-	addExperiment,
-	claudeSays,
-	createHarness,
-	gitIn,
-	today,
-} from "./harness.ts";
+import { addExperiment, claudeSays, createHarness, gitIn } from "./harness.ts";
 
 /** Adds two experiments that the query `sqlite` both matches. */
 async function addTwoSqlite(root: string): Promise<void> {
@@ -184,8 +178,8 @@ test("rename makes no commit, never asks Claude, and leaves kit.toml alone", asy
 	const created = await harness.run(["new", "Bench SQLite in Bun"], {
 		stdin: "\ny\n",
 	});
-	const kit = `project_name = "${today}-bun-sqlite-bench-claude"\n`;
-	const path = join(harness.root, `${today}-sqlite-speed`);
+	const kit = `project_name = "bun-sqlite-bench-claude"\n`;
+	const path = join(harness.root, `sqlite-speed`);
 
 	const result = await harness.run(["rename", "bench", "sqlite", "speed"]);
 

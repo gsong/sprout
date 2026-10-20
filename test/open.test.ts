@@ -50,13 +50,20 @@ test("several matches show a numbered pick list on stderr, in list order", async
 		harness.root,
 		"2026-01-05-sqlite-old",
 		"# sqlite-old\n\nOld try\n",
+		new Date(2026, 0, 5),
 	);
 	await addExperiment(
 		harness.root,
 		"2026-10-10-bun-sqlite-bench",
 		"# bun-sqlite-bench\n\nBench SQLite in Bun\n",
+		new Date(2026, 9, 10),
 	);
-	await addExperiment(harness.root, "sqlite-notes");
+	await addExperiment(
+		harness.root,
+		"sqlite-notes",
+		undefined,
+		new Date(2025, 11, 31),
+	);
 	await addExperiment(harness.root, "2026-10-09-deno-kv");
 
 	const result = await harness.run(["open", "sqlite"], { stdin: "2\n" });

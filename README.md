@@ -6,7 +6,7 @@ Sprout is a CLI that spins up discrete experiments in one central place. Trying 
 cd "$(sprout new bun sqlite bench)"
 ```
 
-That command makes a dated directory under the root, such as `~/src/experiments/2026-10-10-bun-sqlite-bench`. It writes a README and starts a git repo. The `cd` then puts you inside the new directory.
+That command makes a directory under the root, such as `~/src/experiments/bun-sqlite-bench`. It writes a README and starts a git repo. The `cd` then puts you inside the new directory.
 
 ## Status
 
@@ -43,7 +43,7 @@ The build writes the binary to `dist/sprout`. Copy it to a directory on your `PA
 1. Sprout asks Claude Code for a name, built only from the description. It runs `claude -p` with the Haiku model, no tools, and none of your settings, and waits at most 10 seconds.
 2. Sprout shows the suggestion, as in `Name [bun-sqlite-bench]:`. Enter accepts it. Typed text replaces it and goes through the name rules below. When the rules leave nothing of the typed text, sprout says so and asks again.
 3. Sprout asks `Containerized Claude Code? [y/N]`. `y` or `yes`, in any case, means yes. Anything else means no. [Containerized Claude Code](#containerized-claude-code) lists what yes adds.
-4. Sprout makes `<root>/<YYYY-MM-DD>-<name>`, using today's local date.
+4. Sprout makes `<root>/<name>`.
 5. It writes `README.md` with the name as the heading and the description below it.
 6. It runs `git init` and commits every file it wrote as `chore: start experiment`. Git uses your own git config, so `git` must be on your `PATH`.
 
@@ -56,7 +56,7 @@ Sprout turns Claude's reply, the description, or a typed name into the name by t
 - Trim dashes from both ends.
 - Cut a name over 40 characters at the last dash that keeps it within 40.
 
-So when Claude fails, `sprout new "Bun SQLite bench: how fast?"` suggests `bun-sqlite-bench-how-fast`. Accept it, and sprout makes `2026-10-10-bun-sqlite-bench-how-fast`. Run it again the same day and sprout makes `2026-10-10-bun-sqlite-bench-how-fast-2`. When Claude fails and the description has no `a-z` or `0-9` left after the rules, the prompt shows `Name:` with no suggestion, and you must type one.
+So when Claude fails, `sprout new "Bun SQLite bench: how fast?"` suggests `bun-sqlite-bench-how-fast`. Accept it, and sprout makes `bun-sqlite-bench-how-fast`. Run it again and sprout makes `bun-sqlite-bench-how-fast-2`. When Claude fails and the description has no `a-z` or `0-9` left after the rules, the prompt shows `Name:` with no suggestion, and you must type one.
 
 `new` prints only the path on stdout, which is what makes `cd "$(sprout new ...)"` work. The prompts go to stderr, so they still show inside the `$(...)`.
 
@@ -75,7 +75,7 @@ Ctrl-D at any prompt cancels `new`: sprout prints `sprout: cancelled` and exits 
 A yes adds six files for [claude-container](https://github.com/AI-Progress-Agent/claude-container), which runs Claude Code in Docker. They go into the starting commit with the README.
 
 - `docker/cc`, `docker/Dockerfile`, and `docker/Dockerfile.dockerignore`: copies of the claude-container kit at v2.3.0, built into sprout.
-- `docker/kit.toml`: sets `project_name` to the directory name plus `-claude`, such as `2026-10-10-bun-sqlite-bench-claude`.
+- `docker/kit.toml`: sets `project_name` to the directory name plus `-claude`, such as `bun-sqlite-bench-claude`.
 - `mise.toml`: empty. The image installs the tools listed here. Run `docker/cc build` after you change it.
 - `.gitignore`: ignores the kit's files for one machine only, such as `docker/cc.local`.
 
@@ -89,14 +89,14 @@ Sprout builds nothing, and it checks for neither Docker nor uv, which `docker/cc
 
 ```console
 $ sprout list
-2026-10-10-cafe-uber-naive-resume-parsing  Café über naïve résumé parsing
-2026-10-10-bun-sqlite-bench-how-fast-2  Bun SQLite bench: how fast?
-2026-10-10-bun-sqlite-bench-how-fast  Bun SQLite bench: how fast?
+cafe-uber-naive-resume-parsing  Café über naïve résumé parsing
+bun-sqlite-bench-how-fast-2  Bun SQLite bench: how fast?
+bun-sqlite-bench-how-fast  Bun SQLite bench: how fast?
 ```
 
 Any directory directly under the root is an experiment, whoever created it. Sprout skips hidden directories. The description is the first non-blank line after the first heading in the experiment's `README.md`. An experiment without one shows its directory name alone.
 
-Dated directories come first, newest first. Undated directories follow. The filter keeps experiments whose directory name contains it, ignoring case. `sprout list cafe` shows only the first line above.
+Experiments sort by the directory's modified time, newest first, and then by directory name, descending. The modified time changes when a file or directory directly inside the experiment is added, removed, or renamed. Editing a file in place, or a git commit, leaves it alone. The filter keeps experiments whose directory name contains it, ignoring case. `sprout list cafe` shows only the first line above.
 
 On a terminal, `list` prints each directory name in bold and puts a blank line between experiments. Set `NO_COLOR` to drop the bold. Piped output keeps the plain format above, one line per experiment.
 
@@ -110,8 +110,8 @@ When several match, sprout shows a numbered pick list on stderr, in `list` order
 
 ```console
 $ sprout open bun
-1) 2026-10-10-bun-sqlite-bench-how-fast-2  Bun SQLite bench: how fast?
-2) 2026-10-10-bun-sqlite-bench-how-fast  Bun SQLite bench: how fast?
+1) bun-sqlite-bench-how-fast-2  Bun SQLite bench: how fast?
+2) bun-sqlite-bench-how-fast  Bun SQLite bench: how fast?
 Number [1-2]:
 ```
 
@@ -123,7 +123,7 @@ An answer that is not a listed number asks again. An empty answer or Ctrl-D canc
 
 ```console
 $ sprout rm deno
-/Users/you/src/experiments/2026-10-09-deno-kv
+/Users/you/src/experiments/deno-kv
 Try Deno KV
 Remove? [y/N]
 ```
@@ -138,9 +138,9 @@ When the experiment uses [containerized Claude Code](#containerized-claude-code)
 
 ```console
 $ sprout rm sqlite
-/Users/you/src/experiments/2026-10-10-bun-sqlite-bench
+/Users/you/src/experiments/bun-sqlite-bench
 Bench SQLite in Bun
-Docker: image 2026-10-10-bun-sqlite-bench-claude:latest, volume 2026-10-10-bun-sqlite-bench-claude_claude-config, network 2026-10-10-bun-sqlite-bench-claude_default
+Docker: image bun-sqlite-bench-claude:latest, volume bun-sqlite-bench-claude_claude-config, network bun-sqlite-bench-claude_default
 Remove? [y/N]
 ```
 
@@ -156,10 +156,10 @@ One yes covers the directory and the Docker objects. After the directory is in t
 
 ```console
 $ sprout rename sqlite SQLite speed
-/Users/you/src/experiments/2026-10-10-sqlite-speed
+/Users/you/src/experiments/sqlite-speed
 ```
 
-A dated directory keeps its date and gets the new name, so `2026-10-10-bun-sqlite-bench` becomes `2026-10-10-sqlite-speed`. An undated directory becomes the bare new name. If a directory with the new name already exists, sprout exits with an error and changes nothing. It never adds a `-2`.
+The directory becomes the bare new name, so `bun-sqlite-bench` becomes `sqlite-speed`. A directory that starts with a `YYYY-MM-DD-` date, as older versions of sprout made, keeps its date: `2026-10-10-bun-sqlite-bench` becomes `2026-10-10-sqlite-speed`. If a directory with the new name already exists, sprout exits with an error and changes nothing. It never adds a `-2`.
 
 Sprout changes the README heading only if it still reads exactly `# <old name>`. A heading you edited stays as it is.
 
