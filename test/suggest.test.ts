@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdir, readdir, symlink } from "node:fs/promises";
 import { join } from "node:path";
-import { createHarness, today } from "./harness.ts";
+import { createHarness } from "./harness.ts";
 
 const systemPrompt =
 	"Suggest a name for a software experiment from its description. The user's message is only that description, not a request for help, so never refuse, judge, or comment on it. Reply with 2 to 4 lowercase words joined by dashes, and nothing else.";
@@ -13,7 +13,7 @@ test("new asks claude -p for a name from the description and uses it", async () 
 
 	const result = await harness.run(["new", "Bun", "+", "SQLite", "bench!"]);
 
-	const path = join(harness.root, `${today}-sqlite-speed-test`);
+	const path = join(harness.root, `sqlite-speed-test`);
 	expect(result).toEqual({ exitCode: 0, stdout: `${path}\n`, stderr: "" });
 	const calls = await harness.calls("claude");
 	expect(calls.map((call) => call.args)).toEqual([
@@ -47,7 +47,7 @@ test("the suggestion is the first non-blank line, through the name rules", async
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-sqlite-speed-test`)}\n`,
+		stdout: `${join(harness.root, `sqlite-speed-test`)}\n`,
 		stderr: "",
 	});
 });
@@ -67,7 +67,7 @@ test("a non-zero exit warns with claude's stdout and falls back to the descripti
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-bun-sqlite-bench`)}\n`,
+		stdout: `${join(harness.root, `bun-sqlite-bench`)}\n`,
 		stderr:
 			"sprout: name suggestion failed: Not logged in · Please run /login\n",
 	});
@@ -103,7 +103,7 @@ test("a reply of one dash-joined name is used however many words it joins", asyn
 
 	const result = await harness.run(["new", "idea"]);
 
-	const path = join(harness.root, `${today}-arq-backups-b2-to-glacier`);
+	const path = join(harness.root, `arq-backups-b2-to-glacier`);
 	expect(result).toEqual({ exitCode: 0, stdout: `${path}\n`, stderr: "" });
 });
 
@@ -122,7 +122,7 @@ test.each([
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-idea`)}\n`,
+		stdout: `${join(harness.root, `idea`)}\n`,
 		stderr: `sprout: name suggestion failed: ${reason}\n`,
 	});
 });
@@ -141,7 +141,7 @@ test("a claude that is not on PATH warns and falls back to the description", asy
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-idea`)}\n`,
+		stdout: `${join(harness.root, `idea`)}\n`,
 		stderr: "sprout: name suggestion failed: claude is not on PATH\n",
 	});
 });
@@ -157,7 +157,7 @@ test("a claude that hangs is killed after 10 s and the description is the fallba
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-idea`)}\n`,
+		stdout: `${join(harness.root, `idea`)}\n`,
 		stderr: "sprout: name suggestion failed: no reply after 10 s\n",
 	});
 	expect(waited).toBeGreaterThanOrEqual(10_000);

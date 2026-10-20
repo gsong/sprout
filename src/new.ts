@@ -56,11 +56,7 @@ export async function newExperiment(
 	const name = await confirmName(suggestion, description, prompts, ctx);
 	const containerized = await askContainer(prompts);
 	await fileOperation(root, (path) => mkdir(path, { recursive: true }));
-	const directory = await makeFreeDirectory(
-		root,
-		`${localDate(ctx.now())}-`,
-		name,
-	);
+	const directory = await makeFreeDirectory(root, name);
 	try {
 		await fillExperiment(directory, description, containerized, ctx);
 	} catch (error) {
@@ -153,17 +149,16 @@ async function fillExperiment(
 }
 
 /**
- * Makes `<root>/<prefix><name>`. When that exists, it tries `-2`, `-3`, and so
- * on after the name, and makes the first that is free.
+ * Makes `<root>/<name>`. When that exists, it tries `-2`, `-3`, and so on after
+ * the name, and makes the first that is free.
  */
 async function makeFreeDirectory(
 	root: string,
-	prefix: string,
 	name: string,
 ): Promise<NewDirectory> {
 	for (let n = 1; ; n++) {
 		const finalName = n === 1 ? name : `${name}-${n}`;
-		const path = join(root, `${prefix}${finalName}`);
+		const path = join(root, finalName);
 		const made = await fileOperation(path, (path) =>
 			mkdir(path).then(
 				() => true,
@@ -195,11 +190,4 @@ async function runGit(
 		(reason) => new SproutError(`git ${args[0]} failed: ${reason}`),
 		{ cwd, env: gitEnv },
 	);
-}
-
-/** The `YYYY-MM-DD` date of `time` in the local time zone. */
-function localDate(time: Date): string {
-	const month = String(time.getMonth() + 1).padStart(2, "0");
-	const day = String(time.getDate()).padStart(2, "0");
-	return `${time.getFullYear()}-${month}-${day}`;
 }

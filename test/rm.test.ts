@@ -480,5 +480,7 @@ test("rm names the Docker objects of an experiment new made with containerized C
 	const result = await harness.run(["rm", "sqlite"], { stdin: "y\n" });
 
 	expect(result.exitCode).toBe(0);
-	expect(result.stderr).toEndWith(`${dockerLine}Remove? [y/N] `);
+	expect(result.stderr).toEndWith(
+		"Docker: image bun-sqlite-bench-claude:latest, volume bun-sqlite-bench-claude_claude-config, network bun-sqlite-bench-claude_default\nRemove? [y/N] ",
+	);
 });

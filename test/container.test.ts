@@ -1,13 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-	addExperiment,
-	claudeSays,
-	createHarness,
-	gitIn,
-	today,
-} from "./harness.ts";
+import { addExperiment, claudeSays, createHarness, gitIn } from "./harness.ts";
 
 const containerQuestion = "Containerized Claude Code? [y/N] ";
 
@@ -38,7 +32,7 @@ test.each(["y", "yes", "Y", "YES", "Yes"])(
 			stdin: `\n${answer}\n`,
 		});
 
-		const path = join(harness.root, `${today}-idea`);
+		const path = join(harness.root, `idea`);
 		expect(result).toEqual({
 			exitCode: 0,
 			stdout: `${path}\n`,
@@ -59,7 +53,7 @@ test.each(["", "n", "no", "yep", "y es", "sure"])(
 
 		expect(result).toEqual({
 			exitCode: 0,
-			stdout: `${join(harness.root, `${today}-idea`)}\n`,
+			stdout: `${join(harness.root, `idea`)}\n`,
 			stderr: `Name [idea]: ${containerQuestion}`,
 		});
 		expect(await filesIn(result.stdout.trimEnd())).toEqual(["README.md"]);
@@ -112,9 +106,7 @@ test("sprout writes kit.toml, mise.toml, and .gitignore itself", async () => {
 
 	const path = result.stdout.trimEnd();
 	const read = (file: string) => readFile(join(path, file), "utf8");
-	expect(await read("docker/kit.toml")).toBe(
-		`project_name = "${today}-idea-claude"\n`,
-	);
+	expect(await read("docker/kit.toml")).toBe(`project_name = "idea-claude"\n`);
 	expect(await read("mise.toml")).toBe("");
 	expect(await read(".gitignore")).toBe(
 		"docker/cc.local\ndocker/compose.local.yaml\nmise.local.toml\n",
@@ -123,13 +115,13 @@ test("sprout writes kit.toml, mise.toml, and .gitignore itself", async () => {
 
 test("project_name uses the final directory name with its clash suffix", async () => {
 	await using harness = await createHarness(claudeSays("idea"));
-	await addExperiment(harness.root, `${today}-idea`);
+	await addExperiment(harness.root, `idea`);
 
 	const result = await harness.run(["new", "idea"], { stdin: "\ny\n" });
 
 	expect(
 		await readFile(join(result.stdout.trimEnd(), "docker/kit.toml"), "utf8"),
-	).toBe(`project_name = "${today}-idea-2-claude"\n`);
+	).toBe(`project_name = "idea-2-claude"\n`);
 });
 
 test("the starting commit holds all six container files", async () => {

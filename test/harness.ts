@@ -4,6 +4,7 @@ import {
 	mkdtemp,
 	readFile,
 	rm,
+	utimes,
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -73,10 +74,6 @@ export interface RunResult {
 	stderr: string;
 }
 
-/** The time every run sees: noon on 2026-10-10, local time. */
-export const today = "2026-10-10";
-const now = new Date(2026, 9, 10, 12);
-
 /** The git identity in the temporary home's `.gitconfig`. */
 export const gitUser = { name: "Sprout Test", email: "sprout@example.com" };
 
@@ -116,19 +113,26 @@ export function gitIn(cwd: string, home: string) {
 	};
 }
 
+/** The modified time `addExperiment` gives a directory when a test sets none. */
+const addedAt = new Date(2026, 9, 10, 12);
+
 /**
  * Makes an experiment directory at `root/dirName`, with any missing parents,
- * and writes its README when given one.
+ * and writes its README when given one. It then sets the directory's modified
+ * time, so experiments added without one tie and list by name.
  */
 export async function addExperiment(
 	root: string,
 	dirName: string,
 	readme?: string,
+	modified: Date = addedAt,
 ): Promise<void> {
-	await mkdir(join(root, dirName), { recursive: true });
+	const path = join(root, dirName);
+	await mkdir(path, { recursive: true });
 	if (readme !== undefined) {
-		await writeFile(join(root, dirName, "README.md"), readme);
+		await writeFile(join(path, "README.md"), readme);
 	}
+	await utimes(path, modified, modified);
 }
 
 /**
@@ -195,7 +199,6 @@ export async function createHarness(
 					},
 				},
 				programs: { ...programs, ...overrides },
-				now: () => now,
 				interrupted: ctrlC.signal,
 			});
 			return { exitCode, stdout, stderr };

@@ -13,5 +13,5 @@ The one central directory that holds every experiment, side by side.
 _Avoid_: Workspace, home, base
 
 **Name**:
-An experiment's short label, the part of its directory after the date. It is lowercase words joined by dashes.
+An experiment's short label: its directory name, minus any `YYYY-MM-DD-` date in front, which older experiments carry. It is lowercase words joined by dashes.
 _Avoid_: Slug, title

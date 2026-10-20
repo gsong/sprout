@@ -16,6 +16,8 @@ export interface Experiment {
 	name: string;
 	/** The first non-blank line after the README's first heading. */
 	description?: string;
+	/** The directory's modified time, in milliseconds since the epoch. */
+	modified: number;
 }
 
 /** Reads every experiment in the root, in list order. A missing root has none. */
@@ -58,27 +60,19 @@ async function readExperiment(
 	root: string,
 	entry: Dirent,
 ): Promise<Experiment | undefined> {
+	if (entry.name.startsWith(".")) return undefined;
 	const path = join(root, entry.name);
-	if (entry.name.startsWith(".") || !(await isDirectory(entry, path))) {
-		return undefined;
-	}
+	// stat follows a symlink, so one that leads to a directory counts.
+	const stats = await stat(path).catch(() => undefined);
+	if (!stats?.isDirectory()) return undefined;
 	const match = datePrefix.exec(entry.name);
 	return {
 		dirName: entry.name,
 		date: match?.[1],
 		name: match ? entry.name.slice(match[0].length) : entry.name,
 		description: await readDescription(path),
+		modified: stats.mtimeMs,
 	};
-}
-
-/** A directory, or a symlink that leads to one. */
-async function isDirectory(entry: Dirent, path: string): Promise<boolean> {
-	if (entry.isDirectory()) return true;
-	if (!entry.isSymbolicLink()) return false;
-	return stat(path).then(
-		(stats) => stats.isDirectory(),
-		() => false,
-	);
 }
 
 /**
@@ -99,11 +93,9 @@ async function readDescription(path: string): Promise<string | undefined> {
 		.find((line) => line !== "");
 }
 
-/** Dated before undated, then by directory name, descending. */
+/** Newest modified time first, then by directory name, descending. */
 function listOrder(a: Experiment, b: Experiment): number {
-	const aDated = a.date !== undefined;
-	const bDated = b.date !== undefined;
-	if (aDated !== bDated) return aDated ? -1 : 1;
+	if (a.modified !== b.modified) return b.modified - a.modified;
 	return compareDescending(a.dirName, b.dirName);
 }
 

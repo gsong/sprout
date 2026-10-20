@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { claudeSays, createHarness, today } from "./harness.ts";
+import { claudeSays, createHarness } from "./harness.ts";
 
 const containerQuestion = "Containerized Claude Code? [y/N] ";
 
@@ -19,7 +19,7 @@ test("with no words, new asks for the description until it gets one", async () =
 		stdin: "\n   \nBun + SQLite bench!\n\n\n",
 	});
 
-	const path = join(harness.root, `${today}-bun-sqlite-bench`);
+	const path = join(harness.root, `bun-sqlite-bench`);
 	expect(result).toEqual({
 		exitCode: 0,
 		stdout: `${path}\n`,
@@ -41,7 +41,7 @@ test("Enter at the name prompt accepts the suggestion", async () => {
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-sqlite-speed-test`)}\n`,
+		stdout: `${join(harness.root, `sqlite-speed-test`)}\n`,
 		stderr: `Name [sqlite-speed-test]: ${containerQuestion}`,
 	});
 });
@@ -53,7 +53,7 @@ test("typed text replaces the suggestion and goes through the name rules", async
 		stdin: "  Café Crème!  \n\n",
 	});
 
-	expect(result.stdout).toBe(`${join(harness.root, `${today}-cafe-creme`)}\n`);
+	expect(result.stdout).toBe(`${join(harness.root, `cafe-creme`)}\n`);
 });
 
 test("typed text with no usable characters asks again", async () => {
@@ -65,7 +65,7 @@ test("typed text with no usable characters asks again", async () => {
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-mine`)}\n`,
+		stdout: `${join(harness.root, `mine`)}\n`,
 		stderr:
 			"Name [idea]: " +
 			"sprout: '日本語' has no a-z or 0-9 to make a name from\n" +
@@ -83,7 +83,7 @@ test("with no suggestion and no fallback, the prompt has no default and needs ty
 
 	expect(result).toEqual({
 		exitCode: 0,
-		stdout: `${join(harness.root, `${today}-mine`)}\n`,
+		stdout: `${join(harness.root, `mine`)}\n`,
 		stderr: `sprout: name suggestion failed: offline\nName: Name: ${containerQuestion}`,
 	});
 });

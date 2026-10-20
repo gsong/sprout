@@ -99,22 +99,23 @@ test("hidden directories and files are not experiments", async () => {
 	expect(result.stdout).toBe("2026-10-10-idea\n");
 });
 
-test("undated directories come after dated ones, by name descending", async () => {
+test("list sorts by modified time, newest first, then by name descending", async () => {
 	await using harness = await createHarness();
-	for (const dirName of [
-		"alpha",
-		"2026-01-05-older",
-		"zeta",
-		"2026-1-bad",
-		"2026-10-10-newer",
-	]) {
-		await addExperiment(harness.root, dirName);
+	const added: [string, Date][] = [
+		["alpha", new Date(2026, 9, 12)],
+		["2026-10-10-dated", new Date(2026, 0, 1)],
+		["zeta", new Date(2026, 0, 1)],
+		["2026-01-05-touched", new Date(2026, 9, 11)],
+		["beta", new Date(2026, 0, 1)],
+	];
+	for (const [dirName, modified] of added) {
+		await addExperiment(harness.root, dirName, undefined, modified);
 	}
 
 	const result = await harness.run(["list"]);
 
 	expect(result.stdout).toBe(
-		"2026-10-10-newer\n2026-01-05-older\nzeta\nalpha\n2026-1-bad\n",
+		"alpha\n2026-01-05-touched\nzeta\nbeta\n2026-10-10-dated\n",
 	);
 });
 
@@ -130,7 +131,7 @@ test("the filter keeps directory names that contain it, ignoring case", async ()
 
 	const result = await harness.run(["list", "sqlITE"]);
 
-	expect(result.stdout).toBe("2026-10-10-bun-sqlite-bench\nSQLite-notes\n");
+	expect(result.stdout).toBe("SQLite-notes\n2026-10-10-bun-sqlite-bench\n");
 });
 
 test("a missing root prints nothing and exits 0", async () => {
