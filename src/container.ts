@@ -1,5 +1,6 @@
-// Copies of the claude-container kit at tag v2.3.0, kept under src/kit at the
+// Copies of the claude-container kit at tag `kitTag`, kept under src/kit at the
 // kit's own paths. The text imports build them into the binary.
+// `bun scripts/refresh-kit.ts <tag>` replaces them with another tag's copies.
 
 import type { ExperimentFile } from "./files.ts";
 import dockerfile from "./kit/example/docker/Dockerfile" with { type: "text" };
@@ -7,6 +8,9 @@ import dockerignore from "./kit/example/docker/Dockerfile.dockerignore" with {
 	type: "text",
 };
 import stub from "./kit/stub/cc" with { type: "text" };
+
+/** The claude-container tag the kit files come from. */
+export const kitTag = "v2.3.0";
 
 /**
  * The files for containerized Claude Code in the experiment `directoryName`,
