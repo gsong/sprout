@@ -1,5 +1,7 @@
 # sprout
 
+[![CI](https://github.com/gsong/sprout/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gsong/sprout/actions/workflows/ci.yml?query=branch%3Amain)
+
 Sprout is a CLI that spins up discrete experiments in one central place. Trying an idea should cost a single command.
 
 ```sh
