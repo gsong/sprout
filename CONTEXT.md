@@ -15,3 +15,7 @@ _Avoid_: Workspace, home, base
 **Name**:
 An experiment's short label: its directory name, minus any `YYYY-MM-DD-` date in front, which older experiments carry. It is lowercase words joined by dashes.
 _Avoid_: Slug, title
+
+**Kit**:
+The claude-container files sprout builds in, copied from one upstream tag.
+_Avoid_: Template, scaffold, bundle
