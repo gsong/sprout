@@ -1,0 +1,47 @@
+name: Kit drift
+
+# Weekly, checks whether claude-container's newest release changes the kit
+# files sprout builds in. On drift, it opens an issue labelled kit-drift, or
+# comments on the open one. Closing that issue after a refresh resets the cycle.
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned by commit to releases at least 7 days old,
+      # matching minimum_release_age in mise.toml.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The script exits 1 on drift and 2 on any other failure.
+          status=0
+          result=$(bun scripts/refresh-kit.ts --check) || status=$?
+          echo "$result"
+          if [ "$status" -ne 1 ]; then exit "$status"; fi
+
+          issue=$(gh issue list --label kit-drift --state open \
+            --json number --jq '.[0].number')
+          if [ -z "$issue" ]; then
+            gh label create kit-drift --force \
+              --description "claude-container changed the kit files"
+            gh issue create --label kit-drift \
+              --title "Refresh the claude-container kit" \
+              --body "$result
+
+          Run \`bun scripts/refresh-kit.ts <tag>\` with the new tag, commit the result, and close this issue."
+          # Comment only when this drift is not on the issue yet, so an
+          # unchanged upstream does not add a comment every week.
+          elif ! gh issue view "$issue" --json body,comments \
+            --jq '.body, .comments[].body' | grep -qxF "$result"; then
+            gh issue comment "$issue" --body "$result"
+          fi
