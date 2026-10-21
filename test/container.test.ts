@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { kitTag } from "../src/container.ts";
 import { addExperiment, claudeSays, createHarness, gitIn } from "./harness.ts";
 
 const containerQuestion = "Containerized Claude Code? [y/N] ";
 
-/** The git blob id of each kit file at claude-container v2.3.0. */
+/** The git blob id of each kit file at claude-container `kitTag`. */
 const kitBlobs = {
 	"docker/cc": "25f7d19564a2500f316c1d23bcbc218fe07984da",
 	"docker/Dockerfile": "106f74989fa5c7e09cfdc5c3a1e17d032c219ea1",
@@ -82,7 +83,7 @@ test("with no terminal attached, new does not ask and writes only the README", a
 	expect(await filesIn(result.stdout.trimEnd())).toEqual(["README.md"]);
 });
 
-test("the kit files match claude-container v2.3.0 byte for byte", async () => {
+test(`the kit files match claude-container ${kitTag} byte for byte`, async () => {
 	await using harness = await createHarness(claudeSays("idea"));
 
 	const result = await harness.run(["new", "idea"], { stdin: "\ny\n" });
